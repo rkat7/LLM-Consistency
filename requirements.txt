@@ -1,0 +1,13 @@
+openai>=1.0.0
+transformers>=4.30.0
+python-dotenv>=1.0.0
+sympy>=1.12
+z3-solver>=4.12.2
+numpy>=1.24.0
+pydantic>=2.0.0
+pytest>=7.0.0
+requests>=2.28.0
+tqdm>=4.65.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+spacy>=3.5.0

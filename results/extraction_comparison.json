@@ -1,0 +1,148 @@
+{
+  "pattern": {
+    "times": [
+      0.001233816146850586,
+      0.0006248950958251953,
+      0.0001919269561767578,
+      0.00011897087097167969,
+      0.0002522468566894531
+    ],
+    "rule_counts": [
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "rules_by_case": [
+      [
+        "{'type': 'assertion', 'statement': 'All birds can fly.', 'original_text': 'All birds can fly.'}",
+        "{'type': 'assertion', 'statement': 'penguins is birds', 'original_text': 'Penguins are birds.'}",
+        "{'type': 'negation', 'statement': 'penguins is not fly', 'original_text': 'Penguins cannot fly.'}"
+      ],
+      [
+        "{'type': 'assertion', 'statement': 'If a student studies, they will pass the exam.', 'original_text': 'If a student studies, they will pass the exam.'}",
+        "{'type': 'assertion', 'statement': 'If they pass the exam, they will graduate.', 'original_text': 'If they pass the exam, they will graduate.'}",
+        "{'type': 'assertion', 'statement': 'Alice studied but did not graduate.', 'original_text': 'Alice studied but did not graduate.'}"
+      ],
+      [
+        "{'type': 'universal', 'statement': 'All integer are either even or odd', 'original_text': 'Every integer is either even or odd.'}",
+        "{'type': 'existential', 'statement': 'there exists an integer is both even and odd', 'original_text': 'There exists an integer that is both even and odd.'}",
+        "{'type': 'existential', 'statement': 'there exists an integer that is both even and odd', 'original_text': 'There exists an integer that is both even and odd.'}"
+      ],
+      [
+        "{'type': 'universal', 'statement': 'All roses are flowers', 'original_text': 'All roses are flowers.'}",
+        "{'type': 'existential', 'statement': 'some flowers are red', 'original_text': 'Some flowers are red.'}",
+        "{'type': 'existential', 'statement': 'some roses are red', 'original_text': 'Therefore, some roses are red.'}"
+      ],
+      [
+        "{'type': 'assertion', 'statement': 'If it rains, the ground gets wet.', 'original_text': 'If it rains, the ground gets wet.'}",
+        "{'type': 'assertion', 'statement': 'the ground is wet', 'original_text': 'The ground is wet.'}",
+        "{'type': 'assertion', 'statement': 'Therefore, it rained.', 'original_text': 'Therefore, it rained.'}"
+      ]
+    ],
+    "total_rules": 15,
+    "total_time": 0.002421855926513672,
+    "avg_rules_per_case": 3.0,
+    "avg_time_per_case": 0.00048437118530273435
+  },
+  "spacy": {
+    "times": [
+      0.016578197479248047,
+      0.006433963775634766,
+      0.004498958587646484,
+      0.004652976989746094,
+      0.003931999206542969
+    ],
+    "rule_counts": [
+      3,
+      3,
+      4,
+      6,
+      3
+    ],
+    "rules_by_case": [
+      [
+        "{'type': 'assertion', 'statement': 'All birds can fly.', 'original_text': 'All birds can fly.'}",
+        "{'type': 'assertion', 'statement': 'penguins is birds', 'original_text': 'Penguins are birds.'}",
+        "{'type': 'negation', 'statement': 'NOT (Penguins)', 'original_text': 'Penguins cannot fly.'}"
+      ],
+      [
+        "{'type': 'implication', 'antecedent': 'a student studies', 'consequent': ', they will pass the exam .', 'original_text': 'If a student studies, they will pass the exam.'}",
+        "{'type': 'assertion', 'statement': 'If they pass the exam, they will graduate.', 'original_text': 'If they pass the exam, they will graduate.'}",
+        "{'type': 'assertion', 'statement': 'Alice studied but did not graduate.', 'original_text': 'Alice studied but did not graduate.'}"
+      ],
+      [
+        "{'type': 'universal', 'statement': 'All integer are either even or odd', 'original_text': 'Every integer is either even or odd.'}",
+        "{'type': 'assertion', 'statement': 'every integer is either even or odd', 'original_text': 'Every integer is either even or odd.'}",
+        "{'type': 'existential', 'statement': 'there exists an integer is both even and odd', 'original_text': 'There exists an integer that is both even and odd.'}",
+        "{'type': 'existential', 'statement': 'there exists an integer that is both even and odd', 'original_text': 'There exists an integer that is both even and odd.'}"
+      ],
+      [
+        "{'type': 'universal', 'statement': 'All roses are flowers', 'original_text': 'All roses are flowers.'}",
+        "{'type': 'assertion', 'statement': 'all roses is flowers', 'original_text': 'All roses are flowers.'}",
+        "{'type': 'existential', 'statement': 'some flowers are red', 'original_text': 'Some flowers are red.'}",
+        "{'type': 'assertion', 'statement': 'some flowers is red', 'original_text': 'Some flowers are red.'}",
+        "{'type': 'existential', 'statement': 'some roses are red', 'original_text': 'Therefore, some roses are red.'}",
+        "{'type': 'assertion', 'statement': 'therefore, some roses is red', 'original_text': 'Therefore, some roses are red.'}"
+      ],
+      [
+        "{'type': 'implication', 'antecedent': 'it rains', 'consequent': ', the ground gets wet .', 'original_text': 'If it rains, the ground gets wet.'}",
+        "{'type': 'assertion', 'statement': 'the ground is wet', 'original_text': 'The ground is wet.'}",
+        "{'type': 'assertion', 'statement': 'it rained rained', 'original_text': 'Therefore, it rained.'}"
+      ]
+    ],
+    "total_rules": 19,
+    "total_time": 0.03609609603881836,
+    "avg_rules_per_case": 3.8,
+    "avg_time_per_case": 0.0072192192077636715
+  },
+  "llm": {
+    "times": [
+      0.0003960132598876953,
+      0.0002200603485107422,
+      0.00017690658569335938,
+      0.00015592575073242188,
+      0.0001850128173828125
+    ],
+    "rule_counts": [
+      3,
+      4,
+      3,
+      3,
+      3
+    ],
+    "rules_by_case": [
+      [
+        "{'type': 'universal', 'statement': '1. All birds can fly: $\\\\forall x (\\\\text{Bird}(x) \\\\rightarrow \\\\text{CanFly}(x))$', 'original_text': '1. All birds can fly: $\\\\forall x (\\\\text{Bird}(x) \\\\rightarrow \\\\text{CanFly}(x))$'}",
+        "{'type': 'assertion', 'statement': '2. Penguins are birds: $\\\\text{Bird}(\\\\text{Penguin})$', 'original_text': '2. Penguins are birds: $\\\\text{Bird}(\\\\text{Penguin})$'}",
+        "{'type': 'negation', 'statement': '3. Penguins cannot fly: $\\\\neg \\\\text{CanFly}(\\\\text{Penguin})$', 'original_text': '3. Penguins cannot fly: $\\\\neg \\\\text{CanFly}(\\\\text{Penguin})$'}"
+      ],
+      [
+        "{'type': 'implication', 'antecedent': '1.  a student studies,', 'consequent': 'they will pass the exam: \\\\( \\\\text{study}(student) \\\\rightarrow \\\\text{pass\\\\_exam}(student) \\\\)', 'original_text': '1. If a student studies, then they will pass the exam: \\\\( \\\\text{study}(student) \\\\rightarrow \\\\text{pass\\\\_exam}(student) \\\\)'}",
+        "{'type': 'implication', 'antecedent': '2.  a student passes the exam,', 'consequent': 'they will graduate: \\\\( \\\\text{pass\\\\_exam}(student) \\\\rightarrow \\\\text{graduate}(student) \\\\)', 'original_text': '2. If a student passes the exam, then they will graduate: \\\\( \\\\text{pass\\\\_exam}(student) \\\\rightarrow \\\\text{graduate}(student) \\\\)'}",
+        "{'type': 'assertion', 'statement': '3. Alice studied: \\\\( \\\\text{study}(\\\\text{Alice}) \\\\)', 'original_text': '3. Alice studied: \\\\( \\\\text{study}(\\\\text{Alice}) \\\\)'}",
+        "{'type': 'negation', 'statement': '4. Alice did not graduate: \\\\( \\\\lnot \\\\text{graduate}(\\\\text{Alice}) \\\\)', 'original_text': '4. Alice did not graduate: \\\\( \\\\lnot \\\\text{graduate}(\\\\text{Alice}) \\\\)'}"
+      ],
+      [
+        "{'type': 'assertion', 'statement': 'Rules and Facts:', 'original_text': 'Rules and Facts:'}",
+        "{'type': 'implication', 'antecedent': '1. \u2200x (Integer(x)', 'consequent': '(Even(x) \u2228 Odd(x)))  // Every integer is either even or odd.', 'original_text': '1. \u2200x (Integer(x) \u2192 (Even(x) \u2228 Odd(x)))  // Every integer is either even or odd.'}",
+        "{'type': 'assertion', 'statement': '2. \u2203x (Integer(x) \u2227 Even(x) \u2227 Odd(x))  // There exists an integer that is both even and odd.', 'original_text': '2. \u2203x (Integer(x) \u2227 Even(x) \u2227 Odd(x))  // There exists an integer that is both even and odd.'}"
+      ],
+      [
+        "{'type': 'universal', 'statement': '1. All roses are flowers: $\\\\forall x (\\\\text{rose}(x) \\\\rightarrow \\\\text{flower}(x))$', 'original_text': '1. All roses are flowers: $\\\\forall x (\\\\text{rose}(x) \\\\rightarrow \\\\text{flower}(x))$'}",
+        "{'type': 'assertion', 'statement': '2. Some flowers are red: $\\\\exists x (\\\\text{flower}(x) \\\\land \\\\text{red}(x))$', 'original_text': '2. Some flowers are red: $\\\\exists x (\\\\text{flower}(x) \\\\land \\\\text{red}(x))$'}",
+        "{'type': 'assertion', 'statement': '3. Therefore, some roses are red: $\\\\exists x (\\\\text{rose}(x) \\\\land \\\\text{red}(x))$', 'original_text': '3. Therefore, some roses are red: $\\\\exists x (\\\\text{rose}(x) \\\\land \\\\text{red}(x))$'}"
+      ],
+      [
+        "{'type': 'implication', 'antecedent': '1.  it rains,', 'consequent': 'the ground gets wet: \\\\( \\\\text{rain} \\\\rightarrow \\\\text{ground wet} \\\\)', 'original_text': '1. If it rains, then the ground gets wet: \\\\( \\\\text{rain} \\\\Rightarrow \\\\text{ground wet} \\\\)'}",
+        "{'type': 'assertion', 'statement': '2. The ground is wet: \\\\( \\\\text{ground wet} \\\\)', 'original_text': '2. The ground is wet: \\\\( \\\\text{ground wet} \\\\)'}",
+        "{'type': 'assertion', 'statement': '3. Therefore, it rained: \\\\( \\\\text{rain} \\\\)', 'original_text': '3. Therefore, it rained: \\\\( \\\\text{rain} \\\\)'}"
+      ]
+    ],
+    "total_rules": 16,
+    "total_time": 0.0011339187622070312,
+    "avg_rules_per_case": 3.2,
+    "avg_time_per_case": 0.00022678375244140626
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "direct_contradiction": {
+    "detection_rate": 0.0,
+    "repair_success_rate": 0,
+    "avg_inconsistencies": 0,
+    "avg_verification_time": 0.0042150020599365234,
+    "avg_repair_time": 0,
+    "examples": [
+      {
+        "text": "The sky is blue. The sky is not blue.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004118919372558594,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      },
+      {
+        "text": "All birds can fly. Penguins are birds. Penguins cannot fly.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004311084747314453,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      }
+    ]
+  },
+  "consistent": {
+    "detection_rate": 0.0,
+    "repair_success_rate": 0,
+    "avg_inconsistencies": 0,
+    "avg_verification_time": 0.004781007766723633,
+    "avg_repair_time": 0,
+    "examples": [
+      {
+        "text": "All mammals are warm-blooded. Dogs are mammals. Dogs are warm-blooded.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004781007766723633,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      }
+    ]
+  },
+  "complex_implication": {
+    "detection_rate": 0.0,
+    "repair_success_rate": 0,
+    "avg_inconsistencies": 0,
+    "avg_verification_time": 0.004970073699951172,
+    "avg_repair_time": 0,
+    "examples": [
+      {
+        "text": "If it rains, the ground will be wet. It is raining. The ground is dry.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004970073699951172,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      }
+    ]
+  },
+  "quantifier_reasoning": {
+    "detection_rate": 0.0,
+    "repair_success_rate": 0,
+    "avg_inconsistencies": 0,
+    "avg_verification_time": 0.004057168960571289,
+    "avg_repair_time": 0,
+    "examples": [
+      {
+        "text": "All humans are mortal. Socrates is human. Socrates is immortal.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004057168960571289,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      }
+    ]
+  },
+  "logical_fallacy": {
+    "detection_rate": 0.0,
+    "repair_success_rate": 0,
+    "avg_inconsistencies": 0,
+    "avg_verification_time": 0.004538774490356445,
+    "avg_repair_time": 0,
+    "examples": [
+      {
+        "text": "All cats are animals. All dogs are animals. Therefore, all cats are dogs.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004538774490356445,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      }
+    ]
+  },
+  "overall": {
+    "total_cases": 6,
+    "detection_count": 0,
+    "repair_success_count": 0,
+    "avg_verification_time": 0.004462838172912598,
+    "avg_repair_time": 0,
+    "avg_inconsistencies": 0,
+    "detection_rate": 0.0
+  }
+}

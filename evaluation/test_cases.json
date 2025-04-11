@@ -1,0 +1,34 @@
+{
+  "test_cases": [
+    {
+      "category": "direct_contradiction",
+      "text": "The sky is blue. The sky is not blue.",
+      "is_consistent": false
+    },
+    {
+      "category": "direct_contradiction",
+      "text": "All birds can fly. Penguins are birds. Penguins cannot fly.",
+      "is_consistent": false
+    },
+    {
+      "category": "consistent",
+      "text": "All mammals are warm-blooded. Dogs are mammals. Dogs are warm-blooded.",
+      "is_consistent": true
+    },
+    {
+      "category": "complex_implication",
+      "text": "If it rains, the ground will be wet. It is raining. The ground is dry.",
+      "is_consistent": false
+    },
+    {
+      "category": "quantifier_reasoning",
+      "text": "All humans are mortal. Socrates is human. Socrates is immortal.",
+      "is_consistent": false
+    },
+    {
+      "category": "logical_fallacy",
+      "text": "All cats are animals. All dogs are animals. Therefore, all cats are dogs.",
+      "is_consistent": false
+    }
+  ]
+} 
