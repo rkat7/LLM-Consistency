@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class RateLimiter:
     """Simple rate limiter to prevent hitting API rate limits."""
     
-    def __init__(self, calls_per_minute=20):
+    def __init__(self, calls_per_minute=10):
         self.calls_per_minute = calls_per_minute
         self.call_times = []
         self.lock = threading.Lock()  # Use threading.Lock instead of boolean
@@ -304,7 +304,8 @@ Rules and Facts (numbered):
                 return cached_response
         
         retry_count = 0
-        base_delay = 1  # Initial delay in seconds
+        base_delay = 5  # Initial delay in seconds (increased from 1)
+        max_delay = 60  # Maximum delay in seconds
         
         while retry_count <= self.max_retries:
             try:
@@ -348,8 +349,8 @@ Rules and Facts (numbered):
                     logger.error(f"Max retries exceeded for rate limit error: {str(e)}")
                     raise
                 
-                # Calculate backoff delay with jitter
-                delay = base_delay * (2 ** (retry_count - 1)) + random.uniform(0, 1)
+                # Calculate backoff delay with jitter, but cap at max_delay
+                delay = min(base_delay * (2 ** (retry_count - 1)) + random.uniform(0, 1), max_delay)
                 logger.warning(f"Rate limit error encountered, retrying in {delay:.2f}s (attempt {retry_count}/{self.max_retries})")
                 time.sleep(delay)
                 
@@ -360,8 +361,8 @@ Rules and Facts (numbered):
                     logger.error(f"Max retries exceeded for API error: {str(e)}")
                     raise
                 
-                # Calculate backoff delay with jitter
-                delay = base_delay * (2 ** (retry_count - 1)) + random.uniform(0, 1)
+                # Calculate backoff delay with jitter, but cap at max_delay
+                delay = min(base_delay * (2 ** (retry_count - 1)) + random.uniform(0, 1), max_delay)
                 logger.warning(f"API error encountered: {str(e)}, retrying in {delay:.2f}s (attempt {retry_count}/{self.max_retries})")
                 time.sleep(delay)
                 

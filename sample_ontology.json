@@ -1,0 +1,328 @@
+{
+  "name": "Common Knowledge Ontology",
+  "description": "A basic ontology for common knowledge logical relationships",
+  "version": "1.0.0",
+  
+  "entities": [
+    {
+      "name": "living_thing",
+      "description": "Base class for all living organisms"
+    },
+    {
+      "name": "animal",
+      "parent": "living_thing",
+      "relationship": "is-a",
+      "description": "A living organism that feeds on organic matter"
+    },
+    {
+      "name": "plant",
+      "parent": "living_thing",
+      "relationship": "is-a",
+      "description": "A living organism typically using photosynthesis"
+    },
+    {
+      "name": "vertebrate",
+      "parent": "animal",
+      "relationship": "is-a",
+      "description": "Animal with a backbone/spine"
+    },
+    {
+      "name": "invertebrate",
+      "parent": "animal",
+      "relationship": "is-a",
+      "description": "Animal without a backbone/spine"
+    },
+    {
+      "name": "mammal",
+      "parent": "vertebrate",
+      "relationship": "is-a",
+      "description": "Warm-blooded vertebrate with fur/hair"
+    },
+    {
+      "name": "bird",
+      "parent": "vertebrate",
+      "relationship": "is-a",
+      "description": "Warm-blooded vertebrate with feathers"
+    },
+    {
+      "name": "fish",
+      "parent": "vertebrate",
+      "relationship": "is-a",
+      "description": "Cold-blooded aquatic vertebrate with gills"
+    },
+    {
+      "name": "reptile",
+      "parent": "vertebrate",
+      "relationship": "is-a",
+      "description": "Cold-blooded vertebrate typically with scales"
+    },
+    {
+      "name": "amphibian",
+      "parent": "vertebrate",
+      "relationship": "is-a",
+      "description": "Cold-blooded vertebrate that lives both in water and on land"
+    },
+    {
+      "name": "dog",
+      "parent": "mammal",
+      "relationship": "is-a",
+      "description": "Domesticated carnivorous mammal"
+    },
+    {
+      "name": "cat",
+      "parent": "mammal",
+      "relationship": "is-a",
+      "description": "Small domesticated carnivorous mammal"
+    },
+    {
+      "name": "human",
+      "parent": "mammal",
+      "relationship": "is-a",
+      "description": "Homo sapiens, a sapient mammal"
+    },
+    {
+      "name": "eagle",
+      "parent": "bird",
+      "relationship": "is-a",
+      "description": "Large bird of prey"
+    },
+    {
+      "name": "penguin",
+      "parent": "bird",
+      "relationship": "is-a",
+      "description": "Flightless aquatic bird"
+    },
+    {
+      "name": "sparrow",
+      "parent": "bird",
+      "relationship": "is-a",
+      "description": "Small, seed-eating bird"
+    },
+    {
+      "name": "shark",
+      "parent": "fish",
+      "relationship": "is-a",
+      "description": "Predatory marine fish"
+    },
+    {
+      "name": "insect",
+      "parent": "invertebrate",
+      "relationship": "is-a",
+      "description": "Small arthropod animal"
+    },
+    {
+      "name": "butterfly",
+      "parent": "insect",
+      "relationship": "is-a",
+      "description": "Flying insect with colorful wings"
+    },
+    {
+      "name": "vehicle",
+      "description": "A means of transport or conveyance"
+    },
+    {
+      "name": "car",
+      "parent": "vehicle",
+      "relationship": "is-a",
+      "description": "Four-wheeled motor vehicle"
+    },
+    {
+      "name": "airplane",
+      "parent": "vehicle",
+      "relationship": "is-a",
+      "description": "Fixed-wing aircraft"
+    },
+    {
+      "name": "boat",
+      "parent": "vehicle",
+      "relationship": "is-a",
+      "description": "Watercraft"
+    }
+  ],
+  
+  "properties": [
+    {
+      "name": "can_fly",
+      "description": "Ability to fly or move through air"
+    },
+    {
+      "name": "can_swim",
+      "description": "Ability to move through water"
+    },
+    {
+      "name": "can_walk",
+      "description": "Ability to move on land"
+    },
+    {
+      "name": "has_feathers",
+      "description": "Has feathers covering body"
+    },
+    {
+      "name": "has_fur",
+      "description": "Has fur covering body"
+    },
+    {
+      "name": "has_scales",
+      "description": "Has scales covering body"
+    },
+    {
+      "name": "has_wheels",
+      "description": "Has wheels for movement"
+    },
+    {
+      "name": "has_engine",
+      "description": "Has an engine for power"
+    },
+    {
+      "name": "is_warm_blooded",
+      "description": "Maintains constant body temperature"
+    },
+    {
+      "name": "is_cold_blooded",
+      "description": "Body temperature varies with environment"
+    },
+    {
+      "name": "breathes_air",
+      "description": "Uses lungs to breathe air"
+    },
+    {
+      "name": "has_gills",
+      "description": "Uses gills to extract oxygen from water"
+    },
+    {
+      "name": "is_carnivore",
+      "description": "Primarily eats meat"
+    },
+    {
+      "name": "is_herbivore",
+      "description": "Primarily eats plants"
+    },
+    {
+      "name": "is_omnivore",
+      "description": "Eats both meat and plants"
+    },
+    {
+      "name": "is_alive",
+      "description": "Is currently living"
+    }
+  ],
+  
+  "property_assignments": [
+    {
+      "entity": "living_thing",
+      "property": "is_alive",
+      "value": true
+    },
+    {
+      "entity": "animal",
+      "property": "can_walk",
+      "value": true
+    },
+    {
+      "entity": "bird",
+      "property": "has_feathers",
+      "value": true
+    },
+    {
+      "entity": "bird",
+      "property": "can_fly",
+      "value": true
+    },
+    {
+      "entity": "penguin",
+      "property": "can_fly",
+      "value": false,
+      "is_exception": true
+    },
+    {
+      "entity": "penguin",
+      "property": "can_swim",
+      "value": true
+    },
+    {
+      "entity": "fish",
+      "property": "can_swim",
+      "value": true
+    },
+    {
+      "entity": "fish",
+      "property": "has_gills",
+      "value": true
+    },
+    {
+      "entity": "fish",
+      "property": "has_scales",
+      "value": true
+    },
+    {
+      "entity": "mammal",
+      "property": "has_fur",
+      "value": true
+    },
+    {
+      "entity": "mammal",
+      "property": "is_warm_blooded",
+      "value": true
+    },
+    {
+      "entity": "mammal",
+      "property": "breathes_air",
+      "value": true
+    },
+    {
+      "entity": "reptile",
+      "property": "has_scales",
+      "value": true
+    },
+    {
+      "entity": "reptile",
+      "property": "is_cold_blooded",
+      "value": true
+    },
+    {
+      "entity": "human",
+      "property": "is_omnivore",
+      "value": true
+    },
+    {
+      "entity": "dog",
+      "property": "is_carnivore",
+      "value": true
+    },
+    {
+      "entity": "cat",
+      "property": "is_carnivore",
+      "value": true
+    },
+    {
+      "entity": "eagle",
+      "property": "is_carnivore",
+      "value": true
+    },
+    {
+      "entity": "shark",
+      "property": "is_carnivore",
+      "value": true
+    },
+    {
+      "entity": "vehicle",
+      "property": "has_engine",
+      "value": true
+    },
+    {
+      "entity": "car",
+      "property": "has_wheels",
+      "value": true
+    },
+    {
+      "entity": "airplane",
+      "property": "can_fly",
+      "value": true
+    },
+    {
+      "entity": "boat",
+      "property": "can_swim",
+      "value": true
+    }
+  ]
+} 
