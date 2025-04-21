@@ -137,7 +137,7 @@ def generate_summary_report(performance_metrics, ablation_results, benchmark_res
     # Plot 3: Benchmark results by category
     categories = [c for c in benchmark_results.keys() if c != "overall"]
     detection_rates = [benchmark_results[c]["detection_rate"] for c in categories]
-    repair_rates = [benchmark_results[c]["repair_success_rate"] for c in categories]
+    repair_rates = [benchmark_results[c].get("repair_success_rate", 0) for c in categories]
     
     x = np.arange(len(categories))
     width = 0.35
@@ -152,7 +152,7 @@ def generate_summary_report(performance_metrics, ablation_results, benchmark_res
     # Plot 4: Ablation study results
     configs = list(ablation_results.keys())
     success_rates = [ablation_results[c]["success_rate"] for c in configs]
-    repair_rates = [ablation_results[c]["repair_success_rate"] for c in configs]
+    repair_rates = [ablation_results[c].get("repair_success_rate", 0) for c in configs]
     
     x = np.arange(len(configs))
     width = 0.35
@@ -174,9 +174,9 @@ def generate_summary_report(performance_metrics, ablation_results, benchmark_res
         f.write("===========================================\n\n")
         
         f.write("1. OVERALL PERFORMANCE METRICS\n")
-        f.write(f"Success Rate: {performance_metrics['success_rate']:.2f}\n")
-        f.write(f"Detection Rate: {performance_metrics['inconsistency_detection_rate']:.2f}\n")
-        f.write(f"Repair Success Rate: {performance_metrics['repair_success_rate']:.2f}\n")
+        f.write(f"Success Rate: {performance_metrics.get('success_rate', 0.0):.2f}\n")
+        f.write(f"Detection Rate: {performance_metrics.get('inconsistency_detection_rate', 0.0):.2f}\n")
+        f.write(f"Repair Success Rate: {performance_metrics.get('repair_success_rate', 0.0):.2f}\n")
         f.write(f"Average Verification Time: {performance_metrics.get('avg_verification_time', 0):.2f}s\n")
         f.write(f"Average Repair Time: {performance_metrics.get('avg_repair_time', 0):.2f}s\n\n")
         
@@ -187,21 +187,21 @@ def generate_summary_report(performance_metrics, ablation_results, benchmark_res
         f.write(f"Baseline F1 Score: {comparison_results['baseline']['f1']:.2f}\n\n")
         
         f.write("3. BENCHMARK RESULTS\n")
-        f.write(f"Overall Detection Rate: {benchmark_results['overall']['detection_rate']:.2f}\n")
-        f.write(f"Overall Repair Success Rate: {benchmark_results['overall']['repair_success_rate']:.2f}\n")
+        f.write(f"Overall Detection Rate: {benchmark_results.get('overall', {}).get('detection_rate', 0.0):.2f}\n")
+        f.write(f"Overall Repair Success Rate: {benchmark_results.get('overall', {}).get('repair_success_rate', 0.0):.2f}\n")
         f.write("By Category:\n")
         for category in categories:
             f.write(f"  {category.replace('_', ' ').title()}:\n")
-            f.write(f"    Detection Rate: {benchmark_results[category]['detection_rate']:.2f}\n")
-            f.write(f"    Repair Success Rate: {benchmark_results[category]['repair_success_rate']:.2f}\n")
+            f.write(f"    Detection Rate: {benchmark_results.get(category, {}).get('detection_rate', 0.0):.2f}\n")
+            f.write(f"    Repair Success Rate: {benchmark_results.get(category, {}).get('repair_success_rate', 0.0):.2f}\n")
         f.write("\n")
         
         f.write("4. ABLATION STUDY RESULTS\n")
         for config in configs:
             f.write(f"{config}:\n")
-            f.write(f"  Success Rate: {ablation_results[config]['success_rate']:.2f}\n")
-            f.write(f"  Repair Success Rate: {ablation_results[config]['repair_success_rate']:.2f}\n")
-            f.write(f"  Avg. Verification Time: {ablation_results[config]['avg_verification_time']:.2f}s\n")
+            f.write(f"  Success Rate: {ablation_results.get(config, {}).get('success_rate', 0.0):.2f}\n")
+            f.write(f"  Repair Success Rate: {ablation_results.get(config, {}).get('repair_success_rate', 0.0):.2f}\n")
+            f.write(f"  Avg. Verification Time: {ablation_results.get(config, {}).get('avg_verification_time', 0.0):.2f}s\n")
         f.write("\n")
         
         f.write("5. LIMITATIONS AND FUTURE WORK\n")

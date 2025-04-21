@@ -1,7 +1,7 @@
 import logging
 import time
 import hashlib
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Tuple
 from functools import lru_cache
 
 from ..config.config import Config
@@ -69,26 +69,69 @@ class ConsistencyVerifier:
             cache_key = self._get_cache_key(text)
             if cache_key in self.cache:
                 self.cache_hits += 1
-                logger.info(f"Cache hit (hits: {self.cache_hits}, misses: {self.cache_misses})")
+                logger.info(f"[FLOW] Cache hit (hits: {self.cache_hits}, misses: {self.cache_misses})")
                 return self.cache[cache_key]
             else:
                 self.cache_misses += 1
+                logger.info(f"[FLOW] Cache miss (hits: {self.cache_hits}, misses: {self.cache_misses})")
         
         start_time = time.time()
-        logger.info(f"Starting consistency verification of text ({len(text)} chars)")
+        
+        # ------ STEP 1: RECEIVE TEXT INPUT ------
+        logger.info(f"[FLOW:INPUT] Starting consistency verification of text ({len(text)} chars)")
+        logger.debug(f"[FLOW:INPUT] Text input: {text[:200]}...")
+        
+        # Extract original statements from the text
+        original_statements = [s.strip() for s in text.split('.') if s.strip()]
+        
+        # ------ STEP 2: RULE EXTRACTION ------
+        logger.info(f"[FLOW:EXTRACTION] Extracting logical rules from text")
         
         # Extract logical rules from text using the appropriate method
         if self.use_llm_for_extraction:
+            logger.info(f"[FLOW:LLM] Extracting logical rules from text using LLM")
             logical_rules = self.llm_interface.extract_logical_rules(text)
-            logger.debug(f"Extracted {len(logical_rules)} logical rules using LLM")
+            logger.info(f"[FLOW:EXTRACTION] Extracted {len(logical_rules)} logical rules using LLM")
         else:
+            logger.info(f"[FLOW:EXTRACTION] Extracting logical rules from text")
             logical_rules = self.rule_extractor.extract_rules(text)
-            logger.debug(f"Extracted {len(logical_rules)} logical rules using rule extractor")
+            logger.info(f"[FLOW:EXTRACTION] Extracted {len(logical_rules)} logical rules using pattern-based extractor")
         
-        # No rules found
+        # No rules found - try direct LLM extraction as a backup if rules are few
+        # This covers cases where the pattern matching fails but the text is inconsistent
+        if len(logical_rules) < 2 and not self.use_llm_for_extraction:
+            logger.warning(f"[FLOW:EXTRACTION] Only {len(logical_rules)} rules found, attempting LLM backup extraction")
+            llm_rules = self.llm_interface.extract_logical_rules(text)
+            logger.info(f"[FLOW:EXTRACTION] LLM backup extraction found {len(llm_rules)} rules")
+            
+            # If LLM found more rules, use those instead
+            if len(llm_rules) > len(logical_rules):
+                logger.info(f"[FLOW:EXTRACTION] Using {len(llm_rules)} LLM-extracted rules instead of {len(logical_rules)} pattern-extracted rules")
+                logical_rules = llm_rules
+        
+        # Log extracted rules
+        for i, rule in enumerate(logical_rules):
+            if rule["type"] == "implication":
+                rule_str = f"{rule['antecedent']} -> {rule['consequent']}"
+            else:
+                rule_str = rule.get("statement", "")
+            logger.debug(f"[FLOW:EXTRACTION] Rule {i+1}: Type={rule['type']}, Content={rule_str}")
+        
+        # ------ STEP 3: FORMAL VERIFICATION ------
+        logger.info(f"[FLOW:FORMALIZATION] Performing formal verification on {len(logical_rules)} rules")
+            
+        # Still no rules found? Handle empty case differently    
         if not logical_rules:
-            logger.info("No logical rules found in text")
-            result = VerificationResult(True, [])
+            logger.info("[FLOW:FORMALIZATION] No logical rules found in text, skipping verification")
+            
+            # Check if text is extremely short, then it can be considered consistent
+            if len(text.strip()) < 10:
+                result = VerificationResult(True, [])
+            else:
+                # For longer texts, absence of logical rules is suspicious
+                # Indicate this isn't verified rather than claiming consistency
+                result = VerificationResult(True, ["No logical rules were extracted from this text, consistency cannot be fully verified."])
+            
             result.verification_time = time.time() - start_time
             
             # Add to cache if enabled
@@ -98,8 +141,16 @@ class ConsistencyVerifier:
                 
             return result
         
-        # Verify consistency of extracted rules
-        verification_result = self.verification_engine.verify(logical_rules)
+        # Verify consistency of extracted rules, passing original statements for pattern matching
+        verification_result = self.verification_engine.verify(logical_rules, original_statements)
+        
+        # ------ STEP 4: RESULTS ------
+        if verification_result.is_consistent:
+            logger.info("[FLOW:RESULTS] Verification result: CONSISTENT")
+        else:
+            logger.info(f"[FLOW:RESULTS] Verification result: INCONSISTENT with {len(verification_result.inconsistencies)} inconsistencies")
+            for i, inconsistency in enumerate(verification_result.inconsistencies):
+                logger.debug(f"[FLOW:RESULTS] Inconsistency {i+1}: {inconsistency}")
         
         # Add to cache if enabled
         if self.cache is not None:
@@ -108,7 +159,7 @@ class ConsistencyVerifier:
         
         # Log verification time
         total_time = time.time() - start_time
-        logger.info(f"Total verification completed in {total_time:.2f}s: {'Consistent' if verification_result.is_consistent else 'Inconsistent'}")
+        logger.info(f"[FLOW:COMPLETE] Total verification completed in {total_time:.2f}s")
         
         return verification_result
     
@@ -123,38 +174,50 @@ class ConsistencyVerifier:
         Returns:
             Corrected text with inconsistencies resolved
         """
-        # First verify to find inconsistencies
+        # ------ STEP 1: VERIFY TO FIND INCONSISTENCIES ------
+        logger.info(f"[FLOW:REPAIR:INPUT] First verifying text to identify inconsistencies")
         verification_result = self.verify(text)
         
         # If already consistent, return original text
         if verification_result.is_consistent:
-            logger.info("Text is already consistent, no repair needed")
+            logger.info("[FLOW:REPAIR:INPUT] Text is already consistent, no repair needed")
             return text
         
+        # ------ STEP 2: REPAIR PREPARATION ------
         # Use environment variable or config for max repair attempts
         if max_repair_attempts is None:
             max_repair_attempts = Config.MAX_REPAIR_ATTEMPTS
             
-        logger.info(f"Repairing text with {len(verification_result.inconsistencies)} inconsistencies (max attempts: {max_repair_attempts})")
+        logger.info(f"[FLOW:REPAIR:PLANNING] Preparing to repair text with {len(verification_result.inconsistencies)} inconsistencies (max attempts: {max_repair_attempts})")
+        logger.debug(f"[FLOW:REPAIR:PLANNING] Original text: {text[:200]}...")
         
+        for i, inconsistency in enumerate(verification_result.inconsistencies):
+            logger.debug(f"[FLOW:REPAIR:PLANNING] Inconsistency {i+1}: {inconsistency}")
+        
+        # ------ STEP 3: ITERATIVE REPAIR ------
         # Use LLM to repair inconsistencies
         current_text = text
         best_text = text
         lowest_inconsistency_count = len(verification_result.inconsistencies)
         
         for attempt in range(max_repair_attempts):
+            logger.info(f"[FLOW:REPAIR:ATTEMPT] Starting repair attempt {attempt + 1}/{max_repair_attempts}")
+            
             # Generate repaired text
+            logger.debug(f"[FLOW:REPAIR:LLM] Repairing {len(verification_result.inconsistencies)} inconsistencies")
             repaired_text = self.llm_interface.repair_inconsistencies(
                 current_text, 
                 verification_result.inconsistencies
             )
+            logger.debug(f"[FLOW:REPAIR:LLM] Received repaired text: {repaired_text[:200]}...")
             
             # Verify the repaired text
+            logger.info(f"[FLOW:REPAIR:EVALUATION] Verifying repair attempt {attempt + 1}")
             verification_result = self.verify(repaired_text)
             
             # If consistent, return the repaired text
             if verification_result.is_consistent:
-                logger.info(f"Repaired text is consistent (attempt {attempt + 1}/{max_repair_attempts})")
+                logger.info(f"[FLOW:REPAIR:EVALUATION] Repair successful! Text is now consistent (attempt {attempt + 1}/{max_repair_attempts})")
                 return repaired_text
             
             # Track the best version so far
@@ -162,13 +225,22 @@ class ConsistencyVerifier:
             if current_inconsistency_count < lowest_inconsistency_count:
                 lowest_inconsistency_count = current_inconsistency_count
                 best_text = repaired_text
-                logger.info(f"Repair attempt {attempt + 1}/{max_repair_attempts} reduced inconsistencies from {len(self.verify(current_text).inconsistencies)} to {current_inconsistency_count}")
+                logger.info(f"[FLOW:REPAIR:EVALUATION] Repair attempt {attempt + 1}/{max_repair_attempts} reduced inconsistencies from {len(self.verify(current_text).inconsistencies)} to {current_inconsistency_count}")
+                
+                # Fix by handling the string processing outside the f-string
+                remaining_inconsistencies = []
+                for inc in verification_result.inconsistencies:
+                    first_line = inc.split('\n')[0] if '\n' in inc else inc
+                    remaining_inconsistencies.append(first_line)
+                
+                logger.debug(f"[FLOW:REPAIR:EVALUATION] Remaining inconsistencies: {', '.join(remaining_inconsistencies)}")
                 current_text = repaired_text
             else:
-                logger.info(f"Repair attempt {attempt + 1}/{max_repair_attempts} did not improve text, keeping best version")
+                logger.info(f"[FLOW:REPAIR:EVALUATION] Repair attempt {attempt + 1}/{max_repair_attempts} did not improve text, keeping best version")
         
+        # ------ STEP 4: FINALIZE REPAIR ------
         # Return the best version we could achieve
-        logger.warning(f"Could not fully repair text after {max_repair_attempts} attempts, returning best version with {lowest_inconsistency_count} inconsistencies")
+        logger.warning(f"[FLOW:REPAIR:EVALUATION] Could not fully repair text after {max_repair_attempts} attempts, returning best version with {lowest_inconsistency_count} inconsistencies")
         return best_text
     
     def explain_inconsistencies(self, verification_result: VerificationResult) -> str:

@@ -47,24 +47,26 @@ class VerificationEngine:
     def __init__(self, solver_type: str = Config.SOLVER_TYPE):
         """Initialize the verification engine."""
         self.solver_type = SolverType(solver_type)
-        self.use_z3 = solver_type.lower() == 'z3'
         logger.info(f"Verification Engine initialized with solver: {solver_type}")
     
-    def verify(self, logical_rules, original_statements=None):
+    def verify(self, text):
         """
-        Verify the logical consistency of the given rules and statements.
+        Verify the logical consistency of the given text.
 
         Args:
-            logical_rules (List[Dict[str, Any]]): The rules to verify for logical consistency.
-            original_statements (List[str], optional): The original natural language statements.
+            text (str): The text to verify for logical consistency.
 
         Returns:
             VerificationResult: The result of the verification.
         """
         logger.info("[FLOW:VERIFY] Starting verification process")
         
-        # Process statements
-        statements = original_statements if original_statements else []
+        # Preprocess and split into statements
+        statements = self._preprocess_text(text)
+        logger.info(f"[FLOW:VERIFY] Extracted {len(statements)} statements")
+        
+        # Run rule extraction methods
+        extracted_rules = []
         
         # Check for class/instance relationships
         result = self._check_class_instance_contradictions(statements)
@@ -72,30 +74,29 @@ class VerificationEngine:
             logger.info(f"[FLOW:VERIFY] Detected contradiction in class/instance relationships: {result.explanation}")
             return result
         
+        # Extract rules from statements
+        extracted_rules = self._extract_rules(statements)
+        
         # Process same relationships
-        if not logical_rules:
-            logical_rules = []
-            
-        result = self._handle_same_relationship(statements, logical_rules)
+        result = self._handle_same_relationship(statements, extracted_rules)
         
         # If a VerificationResult was returned, it means a contradiction was found
         if isinstance(result, VerificationResult):
             logger.info(f"[FLOW:VERIFY] Detected contradiction in same relationships: {result.explanation}")
-            return result
+        return result
         
-        # Update rules with the ones returned from _handle_same_relationship
-        logical_rules = result
+        extracted_rules = result  # Update rules with the ones returned from _handle_same_relationship
         
         # Check for equality contradictions
-        result = self._check_equality_contradictions(logical_rules, statements)
-        if result is not None and not result.is_consistent:
+        result = self._check_equality_contradictions(statements)
+        if not result.is_consistent:
             logger.info(f"[FLOW:VERIFY] Detected contradiction in equality relationships: {result.explanation}")
             return result
         
         # If we have Z3 available, use it for more advanced verification
-        if hasattr(self, 'use_z3') and self.use_z3:
+        if self.use_z3:
             logger.info("[FLOW:VERIFY] Using Z3 for formal verification")
-            z3_result = self._verify_with_z3(logical_rules, statements)
+            z3_result = self._verify_with_z3(statements, extracted_rules)
             if not z3_result.is_consistent:
                 return z3_result
         
@@ -103,7 +104,7 @@ class VerificationEngine:
         logger.info("[FLOW:VERIFY] No contradictions found, text is logically consistent")
         return VerificationResult(
             is_consistent=True,
-            inconsistencies=[]
+            explanation="The text is logically consistent. No contradictions were found."
         )
         
     def _preprocess_text(self, text):
@@ -399,231 +400,248 @@ class VerificationEngine:
         """Verify the consistency of rules using Z3 solver."""
         logger.info("[FLOW:Z3] Starting Z3 verification")
         
-        if not original_texts:
-            logger.warning("[FLOW:Z3] No original texts provided for Z3 verification")
-            return VerificationResult(
-                is_consistent=True,
-                inconsistencies=[]
-            )
-            
-        # PATTERN 1: "No X are Y" inconsistency
-        # Example: "No planets are stars. Earth is a planet. Earth is a star."
-        no_pattern_result = self._check_no_pattern_inconsistency(original_texts)
-        if no_pattern_result:
-            return no_pattern_result
-            
-        # PATTERN 2: "All X are Y" inconsistency
-        # Example: "All mammals have fur. Cats are mammals. Cats do not have fur."
-        all_pattern_result = self._check_all_pattern_inconsistency(original_texts)
-        if all_pattern_result:
-            return all_pattern_result
-            
-        # PATTERN 3: Direct contradictions
-        # Example: "X is Y. X is not Y."
-        direct_contradiction_result = self._check_direct_contradiction(original_texts)
-        if direct_contradiction_result:
-            return direct_contradiction_result
-            
-        # If we've checked all patterns and found no inconsistencies, return consistent
-        logger.info("[FLOW:Z3] No pattern-based inconsistencies found")
-        return VerificationResult(
-            is_consistent=True,
-            inconsistencies=[]
-        )
+        solver = z3.Solver()
         
-    def _check_no_pattern_inconsistency(self, statements: List[str]) -> Optional[VerificationResult]:
-        """Check for 'No X are Y' inconsistencies."""
-        logger.info("[FLOW:Z3:NO_PATTERN] Checking for 'No X are Y' inconsistencies")
+        # Create Z3 boolean variables for each entity
+        entities = set()
+        entity_vars = {}
+        propositions = {}
         
-        # Enhanced pattern to match "No X are Y" statements with more flexibility
-        no_pattern = re.compile(r"No\s+(\w+?)s?\s+(?:are|is)\s+(\w+?)s?(?:\.|\s|$)", re.IGNORECASE)
+        for rule in rules:
+            entities.update(rule["entities"])
         
-        for text in statements:
-            match = no_pattern.search(text)
-            if match:
-                class_name = match.group(1).lower()
-                excluded_class = match.group(2).lower()
-                logger.debug(f"[FLOW:Z3:NO_PATTERN] Found 'No X are Y' statement: No {class_name} are {excluded_class}")
-                
-                # Enhanced pattern to match "Z is [a/an] X" with more flexibility
-                instance_pattern = re.compile(rf"(\w+)\s+is\s+(?:a|an)?\s*{re.escape(class_name)}(?:\.|\s|$)", re.IGNORECASE)
-                instances = []
-                
-                # Collect all instances of the class from original statements
-                for rule_text in statements:
-                    for instance_match in instance_pattern.finditer(rule_text):
-                        instance = instance_match.group(1).lower()
-                        instances.append((instance, rule_text))
-                        logger.debug(f"[FLOW:Z3:NO_PATTERN] Found instance of {class_name}: {instance}")
-                
-                # For each instance, check if it's also claimed to be part of the excluded class
-                for instance, instance_statement in instances:
-                    # Enhanced pattern to match "Z is [a/an] Y" with more flexibility
-                    excluded_instance_pattern = re.compile(rf"{re.escape(instance)}\s+is\s+(?:a|an)?\s*{re.escape(excluded_class)}(?:\.|\s|$)", re.IGNORECASE)
+        logger.info(f"[FLOW:Z3] Found {len(entities)} entities in rules")
+        
+        # Create Z3 boolean variables for each entity
+        for entity in entities:
+            entity_vars[entity] = z3.Bool(entity)
+            logger.debug(f"[FLOW:Z3] Created variable for entity: '{entity}'")
+
+        # Check for "No X are Y" statements and handle them specifically
+        if original_texts:
+            # Enhanced pattern to match "No X are Y" statements with more flexibility
+            no_pattern = re.compile(r"No\s+(\w+?)s?\s+(?:are|is)\s+(\w+?)s?(?:\.|\s|$)", re.IGNORECASE)
+            
+            for text in original_texts:
+                match = no_pattern.search(text)
+                if match:
+                    class_name = match.group(1).lower()
+                    excluded_class = match.group(2).lower()
+                    logger.debug(f"[FLOW:Z3] Found 'No X are Y' statement: No {class_name} are {excluded_class}")
                     
-                    for statement in statements:
-                        if excluded_instance_pattern.search(statement):
-                            logger.info(f"[FLOW:Z3:NO_PATTERN] Found contradiction: '{text}', '{instance_statement}', '{statement}'")
-                            
-                            return VerificationResult(
-                                is_consistent=False,
-                                inconsistencies=[
-                                    f"Statement '{text}' claims that no {class_name} can be a {excluded_class}.",
-                                    f"Statement '{instance_statement}' claims that {instance} is a {class_name}.",
-                                    f"Statement '{statement}' claims that {instance} is a {excluded_class}."
-                                ],
-                                proof=f"Contradiction found: '{text}' and '{instance_statement}' and '{statement}' are logically inconsistent."
-                            )
-        
-        logger.info("[FLOW:Z3:NO_PATTERN] No 'No X are Y' inconsistencies found")
-        return None
-        
-    def _check_all_pattern_inconsistency(self, statements: List[str]) -> Optional[VerificationResult]:
-        """Check for 'All X are Y' inconsistencies."""
-        logger.info("[FLOW:Z3:ALL_PATTERN] Checking for 'All X are Y' inconsistencies")
-        
-        # Pattern to match "All X are/have Y" statements
-        all_pattern = re.compile(r"(?:All|Every)\s+(\w+?)s?\s+(?:are|is|have|has)\s+(\w+?)s?(?:\.|\s|$)", re.IGNORECASE)
-        
-        for text in statements:
-            match = all_pattern.search(text)
-            if match:
-                class_name = match.group(1).lower()
-                property_name = match.group(2).lower()
-                has_property = "have" in text.lower() or "has" in text.lower()
-                
-                logger.debug(f"[FLOW:Z3:ALL_PATTERN] Found 'All X are/have Y' statement: All {class_name} {'have' if has_property else 'are'} {property_name}")
-                
-                # Find instances of the class - handle both singular and plural forms
-                instance_pattern = re.compile(rf"(\w+)\s+(?:is|are)\s+(?:a|an)?\s*{re.escape(class_name)}s?(?:\.|\s|$)", re.IGNORECASE)
-                instances = []
-                
-                for rule_text in statements:
-                    for instance_match in instance_pattern.finditer(rule_text):
-                        instance = instance_match.group(1).lower()
-                        instances.append((instance, rule_text))
-                        logger.debug(f"[FLOW:Z3:ALL_PATTERN] Found instance of {class_name}: {instance}")
-                
-                # Check if any instance is claimed to NOT have the property
-                for instance, instance_statement in instances:
-                    logger.debug(f"[FLOW:Z3:ALL_PATTERN] Checking if {instance} doesn't have {property_name}")
+                    # Enhanced pattern to match "Z is [a/an] X" with more flexibility
+                    instance_pattern = re.compile(rf"(\w+)\s+is\s+(?:a|an)?\s*{re.escape(class_name)}(?:\.|\s|$)", re.IGNORECASE)
+                    instances = []
                     
-                    # Define negation patterns to detect statements that contradict "X has/is Y"
-                    negation_patterns = [
-                        # Direct "does not have" pattern
-                        re.compile(rf"{re.escape(instance)}\s+(?:does not have|doesn't have|do not have|don't have)\s+{re.escape(property_name)}(?:$|\.|\s)", re.IGNORECASE),
-                        # Direct "is not" pattern
-                        re.compile(rf"{re.escape(instance)}\s+(?:is not|are not|isn't|aren't)\s+{re.escape(property_name)}(?:$|\.|\s)", re.IGNORECASE),
-                        # More specific general negation pattern
-                        re.compile(rf"{re.escape(instance)}\s+(?:does|do|has|have)\s+not\s+(?:have|be)\s+{re.escape(property_name)}(?:$|\.|\s)", re.IGNORECASE)
-                    ]
+                    # Collect all instances of the class from original statements
+                    for rule_text in original_texts:
+                        for instance_match in instance_pattern.finditer(rule_text):
+                            instance = instance_match.group(1).lower()
+                            instances.append((instance, rule_text))
+                            logger.debug(f"[FLOW:Z3] Found instance of {class_name}: {instance}")
                     
-                    for statement in statements:
-                        for pattern in negation_patterns:
-                            if pattern.search(statement):
-                                logger.info(f"[FLOW:Z3:ALL_PATTERN] Found contradiction: '{text}', '{instance_statement}', '{statement}'")
-                                
-                                verb = "have" if has_property else "are"
-                                inconsistencies = [
-                                    f"Statement '{text}' claims that all {class_name} {verb} {property_name}.",
-                                    f"Statement '{instance_statement}' claims that {instance} is a {class_name}.",
-                                    f"Statement '{statement}' claims that {instance} does not {verb if verb=='have' else 'is'} {property_name}."
-                                ]
-                                
-                                proof = f"Contradiction found: '{text}' establishes that all {class_name} {verb} {property_name}, " + \
-                                        f"'{instance_statement}' establishes that {instance} is a {class_name}, but " + \
-                                        f"'{statement}' contradicts that {instance} {verb} {property_name}."
+                    # For each instance, check if it's also claimed to be part of the excluded class
+                    for instance, instance_statement in instances:
+                        # Enhanced pattern to match "Z is [a/an] Y" with more flexibility
+                        excluded_instance_pattern = re.compile(rf"{re.escape(instance)}\s+is\s+(?:a|an)?\s*{re.escape(excluded_class)}(?:\.|\s|$)", re.IGNORECASE)
+                        
+                        for statement in original_texts:
+                            if excluded_instance_pattern.search(statement):
+                                logger.info(f"[FLOW:Z3] Found contradiction: '{text}', '{instance_statement}', '{statement}'")
                                 
                                 return VerificationResult(
-                                    is_consistent=False, 
-                                    inconsistencies=inconsistencies,
-                                    proof=proof
+                                    is_consistent=False,
+                                    inconsistencies=[
+                                        f"Statement '{text}' claims that no {class_name} can be a {excluded_class}.",
+                                        f"Statement '{instance_statement}' claims that {instance} is a {class_name}.",
+                                        f"Statement '{statement}' claims that {instance} is a {excluded_class}."
+                                    ],
+                                    proof=f"Contradiction found: '{text}' and '{instance_statement}' and '{statement}' are logically inconsistent."
                                 )
         
-        logger.info("[FLOW:Z3:ALL_PATTERN] No 'All X are Y' inconsistencies found")
-        return None
-        
-    def _check_direct_contradiction(self, statements: List[str]) -> Optional[VerificationResult]:
-        """Check for direct contradictions between statements."""
-        logger.info("[FLOW:Z3:DIRECT] Checking for direct contradictions")
-        
-        # Extract simple assertion statements
-        assertions = {}  # entity -> {property: statement}
-        negations = {}   # entity -> {property: statement}
-        
-        # Pattern for "X is Y" statements
-        is_pattern = re.compile(r"(\w+)\s+is\s+(\w+)(?:\.|\s|$)", re.IGNORECASE)
-        
-        # Pattern for "X is not Y" statements
-        is_not_pattern = re.compile(r"(\w+)\s+is\s+not\s+(\w+)(?:\.|\s|$)", re.IGNORECASE)
-        
-        # Pattern for "X has Y" statements
-        has_pattern = re.compile(r"(\w+)\s+has\s+(\w+)(?:\.|\s|$)", re.IGNORECASE)
-        
-        # Pattern for "X does not have Y" statements
-        has_not_pattern = re.compile(r"(\w+)\s+(?:does not have|doesn't have|do not have|don't have)\s+(\w+)(?:\.|\s|$)", re.IGNORECASE)
-        
-        # Process positive assertions
-        for statement in statements:
-            # Check "X is Y" pattern
-            for match in is_pattern.finditer(statement):
-                entity = match.group(1).lower()
-                property_name = match.group(2).lower()
+        # Convert rules to Z3 constraints
+        for rule in rules:
+            rule_type = rule["type"]
+            
+            logger.debug(f"[FLOW:Z3] Processing rule of type: {rule_type}")
+            
+            if rule_type == "proposition":
+                entity = rule["entities"][0]
+                value = rule["value"]
                 
-                if entity not in assertions:
-                    assertions[entity] = {}
-                assertions[entity][property_name] = statement
+                # Check if the entity exists in our variable map
+                if entity not in entity_vars:
+                    logger.warning(f"[FLOW:Z3] Entity '{entity}' not found in variable map, skipping rule")
+                    continue
+                    
+                var = entity_vars[entity]
+                if value:
+                    logger.debug(f"[FLOW:Z3] Adding constraint: {entity} is TRUE")
+                    solver.add(var)
+                else:
+                    logger.debug(f"[FLOW:Z3] Adding constraint: {entity} is FALSE")
+                    solver.add(z3.Not(var))
+                propositions[entity] = value
                 
-            # Check "X has Y" pattern
-            for match in has_pattern.finditer(statement):
-                entity = match.group(1).lower()
-                property_name = match.group(2).lower()
+            elif rule_type == "implication":
+                antecedent = rule["antecedent"]
+                consequent = rule["consequent"]
                 
-                if entity not in assertions:
-                    assertions[entity] = {}
-                assertions[entity][property_name] = statement
+                # Convert antecedent to Z3 formula
+                if antecedent["type"] == "AND":
+                    ant_terms = []
+                    for entity in antecedent["entities"]:
+                        if entity not in entity_vars:
+                            logger.warning(f"[FLOW:Z3] Entity '{entity}' not found in variable map, skipping from antecedent")
+                            continue
+                        ant_terms.append(entity_vars[entity])
+                    ant_formula = z3.And(*ant_terms) if ant_terms else None
+                elif antecedent["type"] == "OR":
+                    ant_terms = []
+                    for entity in antecedent["entities"]:
+                        if entity not in entity_vars:
+                            logger.warning(f"[FLOW:Z3] Entity '{entity}' not found in variable map, skipping from antecedent")
+                            continue
+                        ant_terms.append(entity_vars[entity])
+                    ant_formula = z3.Or(*ant_terms) if ant_terms else None
+                else:  # Single entity
+                    entity = antecedent["entities"][0]
+                    if entity not in entity_vars:
+                        logger.warning(f"[FLOW:Z3] Entity '{entity}' not found in variable map, skipping rule")
+                        continue
+                    ant_formula = entity_vars[entity]
+                
+                # Convert consequent to Z3 formula
+                if consequent["type"] == "AND":
+                    cons_terms = []
+                    for entity in consequent["entities"]:
+                        if entity not in entity_vars:
+                            logger.warning(f"[FLOW:Z3] Entity '{entity}' not found in variable map, skipping from consequent")
+                            continue
+                        cons_terms.append(entity_vars[entity])
+                    cons_formula = z3.And(*cons_terms) if cons_terms else None
+                elif consequent["type"] == "OR":
+                    cons_terms = []
+                    for entity in consequent["entities"]:
+                        if entity not in entity_vars:
+                            logger.warning(f"[FLOW:Z3] Entity '{entity}' not found in variable map, skipping from consequent")
+                            continue
+                        cons_terms.append(entity_vars[entity])
+                    cons_formula = z3.Or(*cons_terms) if cons_terms else None
+                else:  # Single entity
+                    entity = consequent["entities"][0]
+                    if entity not in entity_vars:
+                        logger.warning(f"[FLOW:Z3] Entity '{entity}' not found in variable map, skipping rule")
+                        continue
+                    cons_formula = entity_vars[entity]
+                
+                # Skip if either formula is None due to missing entities
+                if ant_formula is None or cons_formula is None:
+                    logger.warning("[FLOW:Z3] Skipping rule due to missing entities")
+                    continue
+                
+                # Add implication to solver
+                logger.debug(f"[FLOW:Z3] Adding implication: {antecedent} => {consequent}")
+                solver.add(z3.Implies(ant_formula, cons_formula))
+                
+            elif rule_type == "equality":
+                entity1, entity2 = rule["entities"]
+                
+                # Check if both entities exist in our variable map
+                if entity1 not in entity_vars or entity2 not in entity_vars:
+                    logger.warning(f"[FLOW:Z3] Entities '{entity1}' or '{entity2}' not found in variable map, skipping rule")
+                    continue
+                    
+                var1 = entity_vars[entity1]
+                var2 = entity_vars[entity2]
+                
+                # Add equality constraint: entity1 iff entity2
+                logger.debug(f"[FLOW:Z3] Adding equality constraint: {entity1} ⟷ {entity2}")
+                solver.add(var1 == var2)
+                
+            elif rule_type == "class_instance":
+                class_name = rule["class_name"]
+                instance_name = rule["instance_name"]
+                
+                # Check if both class and instance exist in our variable map
+                if class_name not in entity_vars or instance_name not in entity_vars:
+                    logger.warning(f"[FLOW:Z3] Class '{class_name}' or instance '{instance_name}' not found in variable map, skipping rule")
+                    continue
+                    
+                class_var = entity_vars[class_name]
+                instance_var = entity_vars[instance_name]
+                
+                # Add implication: instance implies class
+                logger.debug(f"[FLOW:Z3] Adding class-instance constraint: {instance_name} => {class_name}")
+                solver.add(z3.Implies(instance_var, class_var))
+                
+            else:
+                logger.warning(f"[FLOW:Z3] Unhandled rule type: {rule_type}")
         
-        # Process negations
-        for statement in statements:
-            # Check "X is not Y" pattern
-            for match in is_not_pattern.finditer(statement):
-                entity = match.group(1).lower()
-                property_name = match.group(2).lower()
+        # Check for satisfiability
+        logger.info("[FLOW:Z3] Checking satisfiability")
+        result = solver.check()
+
+        if result == z3.sat:
+            logger.info("[FLOW:Z3] Rules are satisfiable (consistent)")
+            model = solver.model()
+            
+            # Get the values of all entities
+            entity_values = {}
+            for entity, var in entity_vars.items():
+                if model[var] is not None:
+                    value = z3.is_true(model[var])
+                    entity_values[entity] = value
+                    logger.debug(f"[FLOW:Z3] Entity '{entity}' = {value}")
+            
+            return VerificationResult(
+                is_consistent=True,
+                message="The statements are consistent.",
+                details={
+                    "satisfiable": True,
+                    "model": entity_values
+                }
+            )
+        else:
+            logger.info("[FLOW:Z3] Rules are unsatisfiable (inconsistent)")
+            
+            # Try to extract an unsat core if available
+            if hasattr(solver, 'unsat_core'):
+                core = solver.unsat_core()
+                logger.debug(f"[FLOW:Z3] Unsat core contains {len(core)} constraints")
                 
-                if entity not in negations:
-                    negations[entity] = {}
-                negations[entity][property_name] = statement
+                # Extract the relevant entities from the unsat core
+                core_entities = set()
+                for constraint in core:
+                    for entity, var in entity_vars.items():
+                        if str(var) in str(constraint):
+                            core_entities.add(entity)
                 
-            # Check "X does not have Y" pattern
-            for match in has_not_pattern.finditer(statement):
-                entity = match.group(1).lower()
-                property_name = match.group(2).lower()
-                
-                if entity not in negations:
-                    negations[entity] = {}
-                negations[entity][property_name] = statement
-        
-        # Check for contradictions
-        for entity in assertions:
-            if entity in negations:
-                for property_name in assertions[entity]:
-                    if property_name in negations[entity]:
-                        pos_statement = assertions[entity][property_name]
-                        neg_statement = negations[entity][property_name]
-                        
-                        logger.info(f"[FLOW:Z3:DIRECT] Found direct contradiction: '{pos_statement}', '{neg_statement}'")
-                        
-                        return VerificationResult(
-                            is_consistent=False,
-                            inconsistencies=[
-                                f"Statement '{pos_statement}' claims that {entity} is/has {property_name}.",
-                                f"Statement '{neg_statement}' contradicts this by claiming {entity} is not/does not have {property_name}."
-                            ],
-                            proof=f"Direct contradiction found: '{pos_statement}' and '{neg_statement}' make contradictory claims about {entity}."
-                        )
-        
-        logger.info("[FLOW:Z3:DIRECT] No direct contradictions found")
-        return None
+                core_info = {
+                    "entities": list(core_entities),
+                    "constraints": [str(c) for c in core]
+                }
+            else:
+                core_info = {"message": "Unsat core not available"}
+            
+            # Find related original statements
+            related_statements = []
+            if original_texts:
+                for entity in core_entities:
+                    for text in original_texts:
+                        if re.search(r'\b' + re.escape(entity) + r'\b', text, re.IGNORECASE):
+                            if text not in related_statements:
+                                related_statements.append(text)
+            
+            return VerificationResult(
+                is_consistent=False,
+                message="The statements are inconsistent: one or more contradictions were found.",
+                details={
+                    "satisfiable": False,
+                    "unsat_core": core_info,
+                    "related_statements": related_statements
+                }
+            )
 
     def _verify_with_sympy(self, rules: List[Dict[str, Any]]) -> VerificationResult:
         """Verify logical consistency using SymPy."""
@@ -764,7 +782,7 @@ class VerificationEngine:
             
             message = f"Contradiction found in attribute statements: '{entity1}' and '{entity2}' are stated to be different, " \
                       f"but they share attributes or equivalences that make them the same."
-            
+                
             return VerificationResult(
                 is_consistent=False,
                 message=message,

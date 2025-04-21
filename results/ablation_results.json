@@ -1,38 +1,38 @@
 {
   "Base": {
-    "success_rate": 0.16666666666666666,
+    "success_rate": 0.2,
     "detection_rate": 0,
     "repair_success_rate": 0,
-    "avg_verification_time": 0.010919928550720215,
+    "avg_verification_time": 0.014403009414672851,
     "avg_repair_time": 0,
     "inconsistencies_found": 0,
-    "total_cases": 6
+    "total_cases": 5
   },
   "Alternative Model": {
-    "success_rate": 0.16666666666666666,
+    "success_rate": 0.2,
     "detection_rate": 0,
     "repair_success_rate": 0,
-    "avg_verification_time": 0.004556179046630859,
+    "avg_verification_time": 0.006383275985717774,
     "avg_repair_time": 0,
     "inconsistencies_found": 0,
-    "total_cases": 6
+    "total_cases": 5
   },
   "Alternative Solver": {
-    "success_rate": 0.16666666666666666,
+    "success_rate": 0.2,
     "detection_rate": 0,
     "repair_success_rate": 0,
-    "avg_verification_time": 0.0044400691986083984,
+    "avg_verification_time": 0.03686952590942383,
     "avg_repair_time": 0,
     "inconsistencies_found": 0,
-    "total_cases": 6
+    "total_cases": 5
   },
   "More Repair Attempts": {
-    "success_rate": 0.16666666666666666,
+    "success_rate": 0.2,
     "detection_rate": 0,
     "repair_success_rate": 0,
-    "avg_verification_time": 0.004560987154642741,
+    "avg_verification_time": 0.006472969055175781,
     "avg_repair_time": 0,
     "inconsistencies_found": 0,
-    "total_cases": 6
+    "total_cases": 5
   }
 }

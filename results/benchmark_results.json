@@ -3,15 +3,15 @@
     "detection_rate": 0.0,
     "repair_success_rate": 0,
     "avg_inconsistencies": 0,
-    "avg_verification_time": 0.0042150020599365234,
+    "avg_verification_time": 0.01378957430521647,
     "avg_repair_time": 0,
     "examples": [
       {
-        "text": "The sky is blue. The sky is not blue.",
+        "text": "A is true. A is false.",
         "verified": true,
         "is_consistent": true,
         "inconsistencies": [],
-        "verification_time": 0.004118919372558594,
+        "verification_time": 0.0045108795166015625,
         "repaired": false,
         "repaired_text": "",
         "repair_time": 0
@@ -21,26 +21,17 @@
         "verified": true,
         "is_consistent": true,
         "inconsistencies": [],
-        "verification_time": 0.004311084747314453,
+        "verification_time": 0.0055658817291259766,
         "repaired": false,
         "repaired_text": "",
         "repair_time": 0
-      }
-    ]
-  },
-  "consistent": {
-    "detection_rate": 0.0,
-    "repair_success_rate": 0,
-    "avg_inconsistencies": 0,
-    "avg_verification_time": 0.004781007766723633,
-    "avg_repair_time": 0,
-    "examples": [
+      },
       {
-        "text": "All mammals are warm-blooded. Dogs are mammals. Dogs are warm-blooded.",
+        "text": "John is tall. John is short.",
         "verified": true,
         "is_consistent": true,
         "inconsistencies": [],
-        "verification_time": 0.004781007766723633,
+        "verification_time": 0.031291961669921875,
         "repaired": false,
         "repaired_text": "",
         "repair_time": 0
@@ -51,15 +42,35 @@
     "detection_rate": 0.0,
     "repair_success_rate": 0,
     "avg_inconsistencies": 0,
-    "avg_verification_time": 0.004970073699951172,
+    "avg_verification_time": 0.006857951482137044,
     "avg_repair_time": 0,
     "examples": [
       {
-        "text": "If it rains, the ground will be wet. It is raining. The ground is dry.",
+        "text": "If A then B. If B then C. A is true. C is false.",
         "verified": true,
         "is_consistent": true,
         "inconsistencies": [],
-        "verification_time": 0.004970073699951172,
+        "verification_time": 0.004849910736083984,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      },
+      {
+        "text": "If the policy is implemented, taxes will increase. If taxes increase, spending will decrease. The policy is implemented. Spending has increased.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.007951974868774414,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      },
+      {
+        "text": "If someone is a doctor, they have a medical degree. If someone has a medical degree, they went to medical school. Dr. Smith is a doctor who didn't go to medical school.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.007771968841552734,
         "repaired": false,
         "repaired_text": "",
         "repair_time": 0
@@ -70,7 +81,7 @@
     "detection_rate": 0.0,
     "repair_success_rate": 0,
     "avg_inconsistencies": 0,
-    "avg_verification_time": 0.004057168960571289,
+    "avg_verification_time": 0.0051907698313395185,
     "avg_repair_time": 0,
     "examples": [
       {
@@ -78,26 +89,66 @@
         "verified": true,
         "is_consistent": true,
         "inconsistencies": [],
-        "verification_time": 0.004057168960571289,
+        "verification_time": 0.0047490596771240234,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      },
+      {
+        "text": "Every integer is either even or odd. There exists an integer that is both even and odd.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004897117614746094,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      },
+      {
+        "text": "All students have taken at least one exam. No failed student has passed any exam. Some students have failed.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.0059261322021484375,
         "repaired": false,
         "repaired_text": "",
         "repair_time": 0
       }
     ]
   },
-  "logical_fallacy": {
+  "real_world_examples": {
     "detection_rate": 0.0,
     "repair_success_rate": 0,
     "avg_inconsistencies": 0,
-    "avg_verification_time": 0.004538774490356445,
+    "avg_verification_time": 0.006670633951822917,
     "avg_repair_time": 0,
     "examples": [
       {
-        "text": "All cats are animals. All dogs are animals. Therefore, all cats are dogs.",
+        "text": "If a student studies, they will pass the exam. If they pass the exam, they will graduate. Alice studied but did not graduate.",
         "verified": true,
         "is_consistent": true,
         "inconsistencies": [],
-        "verification_time": 0.004538774490356445,
+        "verification_time": 0.007339000701904297,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      },
+      {
+        "text": "All politicians are dishonest. Senator Jones is honest. Senator Jones is a politician.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.004909992218017578,
+        "repaired": false,
+        "repaired_text": "",
+        "repair_time": 0
+      },
+      {
+        "text": "Using fossil fuels increases carbon emissions. Increased carbon emissions lead to climate change. Alternative energy doesn't use fossil fuels. Alternative energy will not affect climate change.",
+        "verified": true,
+        "is_consistent": true,
+        "inconsistencies": [],
+        "verification_time": 0.007762908935546875,
         "repaired": false,
         "repaired_text": "",
         "repair_time": 0
@@ -105,10 +156,10 @@
     ]
   },
   "overall": {
-    "total_cases": 6,
+    "total_cases": 12,
     "detection_count": 0,
     "repair_success_count": 0,
-    "avg_verification_time": 0.004462838172912598,
+    "avg_verification_time": 0.008127232392628988,
     "avg_repair_time": 0,
     "avg_inconsistencies": 0,
     "detection_rate": 0.0

@@ -2,17 +2,55 @@ LLM CONSISTENCY VERIFIER - EVALUATION SUMMARY
 ===========================================
 
 1. OVERALL PERFORMANCE METRICS
-Success Rate: 0.20
+Success Rate: 0.00
 Detection Rate: 0.00
 Repair Success Rate: 0.00
 Average Verification Time: 0.00s
 Average Repair Time: 0.00s
 
 2. COMPARISON WITH BASELINE
-Verifier Accuracy: 0.43
-Baseline Accuracy: 0.43
+Verifier Accuracy: 0.00
+Baseline Accuracy: 0.00
 Verifier F1 Score: 0.00
 Baseline F1 Score: 0.00
 
 3. BENCHMARK RESULTS
 Overall Detection Rate: 0.00
+Overall Repair Success Rate: 0.00
+By Category:
+  Direct Contradiction:
+    Detection Rate: 0.00
+    Repair Success Rate: 0.00
+  Complex Implication:
+    Detection Rate: 0.00
+    Repair Success Rate: 0.00
+  Quantifier Reasoning:
+    Detection Rate: 0.00
+    Repair Success Rate: 0.00
+  Real World Examples:
+    Detection Rate: 0.00
+    Repair Success Rate: 0.00
+
+4. ABLATION STUDY RESULTS
+Base:
+  Success Rate: 0.20
+  Repair Success Rate: 0.00
+  Avg. Verification Time: 0.01s
+Alternative Model:
+  Success Rate: 0.20
+  Repair Success Rate: 0.00
+  Avg. Verification Time: 0.01s
+Alternative Solver:
+  Success Rate: 0.20
+  Repair Success Rate: 0.00
+  Avg. Verification Time: 0.04s
+More Repair Attempts:
+  Success Rate: 0.20
+  Repair Success Rate: 0.00
+  Avg. Verification Time: 0.01s
+
+5. LIMITATIONS AND FUTURE WORK
+- Current implementation has limited support for complex logical structures
+- Rule extraction from natural language needs improvement
+- The repair mechanism could benefit from more formal guidance
+- Future work should explore more advanced verification engines

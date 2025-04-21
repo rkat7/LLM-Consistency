@@ -1,5 +1,6 @@
 import re
 import logging
+import json
 from typing import List, Dict, Any, Set, Tuple, Optional
 from ..config.config import Config
 from ..models.logic_model import Term, Predicate, Formula, LogicalRule, LogicalOperator
@@ -16,544 +17,320 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class RuleExtractor:
-    """
-    Extracts logical rules from text using NLP techniques without LLM dependency.
-    """
-    
-    # Common words to ignore when identifying entities
-    STOPWORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'if', 'then', 'in', 'on', 'at', 
-                'to', 'for', 'with', 'by', 'from', 'up', 'down', 'out', 'as', 'is',
-                'are', 'be', 'was', 'were', 'been', 'being', 'have', 'has', 'had',
-                'do', 'does', 'did', 'can', 'could', 'will', 'would', 'shall',
-                'should', 'may', 'might', 'must', 'that', 'which', 'who', 'whom',
-                'whose', 'this', 'these', 'those', 'of', 'while', 'when'}
-    
-    # Patterns for identifying different types of logical statements
-    UNIVERSAL_PATTERNS = [
-        r'\b(all|every|any|each)\s+([^.!?]+?)\s+(are|is|have|has)\s+([^.!?]+)',
-        r'([^.!?]+?)\s+is\s+always\s+([^.!?]+)',
-    ]
-    
-    EXISTENTIAL_PATTERNS = [
-        r'\b(some|there\s+(?:are|is|exists))\s+([^.!?]+?)\s+(?:that|who|which)\s+([^.!?]+)',
-        r'\b(some|there\s+(?:are|is|exists))\s+([^.!?]+)',
-    ]
-    
-    IMPLICATION_PATTERNS = [
-        r'\bif\s+([^,]+?),?\s+then\s+([^.!?]+)',
-        r'([^.!?]+?)\s+implies\s+([^.!?]+)',
-        r'([^.!?]+?)\s+(?:→|->)\s+([^.!?]+)',
-        r'when(ever)?\s+([^,]+?),\s+([^.!?]+)',
-    ]
-    
-    NEGATION_PATTERNS = [
-        r'([^.!?]+?)\s+(?:is not|are not|cannot|can\'t|doesn\'t|does not|don\'t|do not)\s+([^.!?]+)',
-        r'(?:no|not all)\s+([^.!?]+?)\s+(?:are|is)\s+([^.!?]+)',
-        r'it\s+is\s+not\s+the\s+case\s+that\s+([^.!?]+)',
-    ]
-    
-    ASSERTION_PATTERNS = [
-        r'([^.!?]+?)\s+(?:is|are)\s+([^.!?]+)',
-        r'([^.!?]+?)\s+(?:has|have)\s+([^.!?]+)',
-    ]
+    """Base class for extracting logical rules from text."""
     
     def __init__(self):
         """Initialize the rule extractor."""
-        logger.info("Initializing rule extractor with NLP-based techniques")
+        logger.info("Initializing rule extractor with pattern-based techniques")
+        # Precompile regex patterns for better performance
+        self.universal_pattern = re.compile(r'(?:all|every|each)\s+(.+?)\s+(?:are|is|have|has|must|will|can)\s+(.+?)(?:$|\.|\,)', re.IGNORECASE)
+        self.existential_pattern = re.compile(r'(?:some|there\s+exists?|a few|many|most|several)\s+(.+?)\s+(?:are|is|have|has|can|do|will)\s+(.+?)(?:$|\.|\,)', re.IGNORECASE)
+        self.negation_pattern = re.compile(r'(?:no|not all|none of the)\s+(.+?)\s+(?:are|is|have|has|can|will)\s+(.+?)(?:$|\.|\,)', re.IGNORECASE)
+        self.assertion_pattern = re.compile(r'([^\.]+?)\s+(?:is|are|has|have|can|will|must|should)\s+([^\.]+?)(?:$|\.|\,)', re.IGNORECASE)
+        self.implication_pattern = re.compile(r'(?:if|when|whenever)\s+(.+?)\s+(?:then|,)\s+(.+?)(?:$|\.|\,)', re.IGNORECASE)
+        self.not_pattern = re.compile(r'([^\.]+?)\s+(?:is not|are not|isn\'t|aren\'t|cannot|can\'t|won\'t|will not|doesn\'t|does not|don\'t|do not)\s+([^\.]+?)(?:$|\.|\,)', re.IGNORECASE)
+        self.equality_pattern = re.compile(r"([^\.]+?)\s+(?:is|are)\s+(?:the\s+)?same\s+(?:as)?\s+([^\.]+?)(?:$|\.|\,)", re.IGNORECASE)
     
     def extract_rules(self, text: str) -> List[Dict[str, Any]]:
-        """
-        Extract logical rules from text using pattern matching and NLP techniques.
-        
-        Args:
-            text: The text to extract rules from
+        """Extract logical rules from text using pattern matching."""
+        if not text:
+            return []
             
-        Returns:
-            List of extracted rules in dictionary format
-        """
-        # Preprocess text
-        text = self._preprocess_text(text)
+        # Create a clear log entry for the extraction process
+        logger.info(f"[FLOW:EXTRACTION:DETAIL] Starting rule extraction for text of length {len(text)}")
         
-        # Extract sentences
-        sentences = self._extract_sentences(text)
-        logger.debug(f"Extracted {len(sentences)} sentences")
+        # Process the text to prepare for extraction
+        sentences = [s.strip() for s in re.split(r'[.!?]', text) if s.strip()]
+        logger.info(f"[FLOW:EXTRACTION:DETAIL] Split text into {len(sentences)} sentences")
         
         rules = []
         
-        # Process each sentence to extract rules
+        # Process each sentence in parallel for large texts
+        if len(sentences) > 10:
+            # Process in batches for large texts
+            batch_size = 10
+            logger.info(f"[FLOW:EXTRACTION:DETAIL] Processing text in batches of {batch_size} sentences")
+            for i in range(0, len(sentences), batch_size):
+                batch = sentences[i:i+batch_size]
+                batch_rules = self._process_batch(batch)
+                rules.extend(batch_rules)
+                logger.info(f"[FLOW:EXTRACTION:DETAIL] Processed batch {i//batch_size + 1}, found {len(batch_rules)} rules")
+        else:
+            # Process sequentially for small texts
+            logger.info(f"[FLOW:EXTRACTION:DETAIL] Processing text sequentially")
+            for sentence in sentences:
+                sentence_rules = self._extract_rules_from_sentence(sentence)
+                rules.extend(sentence_rules)
+                if sentence_rules:
+                    logger.debug(f"[FLOW:EXTRACTION:DETAIL] Found {len(sentence_rules)} rules in sentence: '{sentence}'")
+        
+        # Remove duplicates preserving order
+        unique_rules = []
+        seen = set()
+        for rule in rules:
+            rule_key = self._get_rule_key(rule)
+            if rule_key not in seen:
+                seen.add(rule_key)
+                unique_rules.append(rule)
+        
+        logger.info(f"[FLOW:EXTRACTION:DETAIL] Extracted {len(unique_rules)} unique logical rules total")
+        
+        return unique_rules
+    
+    def _process_batch(self, sentences: List[str]) -> List[Dict[str, Any]]:
+        """Process a batch of sentences in parallel."""
+        batch_rules = []
         for sentence in sentences:
-            # Extract universal rules (All X are Y)
-            universal_rules = self._extract_universal_rules(sentence)
-            if universal_rules:
-                rules.extend(universal_rules)
-                continue
-                
-            # Extract implications (If X then Y)
-            implication_rules = self._extract_implication_rules(sentence)
-            if implication_rules:
-                rules.extend(implication_rules)
-                continue
-                
-            # Extract negations (X is not Y)
-            negation_rules = self._extract_negation_rules(sentence)
-            if negation_rules:
-                rules.extend(negation_rules)
-                continue
-                
-            # Extract existential rules (Some X are Y)
-            existential_rules = self._extract_existential_rules(sentence)
-            if existential_rules:
-                rules.extend(existential_rules)
-                continue
-                
-            # Extract general assertions (X is Y)
-            assertion_rules = self._extract_assertion_rules(sentence)
-            if assertion_rules:
-                rules.extend(assertion_rules)
-        
-        # Post-process to normalize entities and resolve coreferences
-        rules = self._post_process_rules(rules)
-        
-        logger.info(f"Extracted {len(rules)} logical rules from text")
-        return rules
+            batch_rules.extend(self._extract_rules_from_sentence(sentence))
+        return batch_rules
     
-    def _preprocess_text(self, text: str) -> str:
-        """Preprocess text for rule extraction."""
-        # Normalize whitespace
-        text = re.sub(r'\s+', ' ', text).strip()
-        
-        # Normalize punctuation
-        text = text.replace('...', '.')
-        text = re.sub(r'\.+', '.', text)
-        
-        # Ensure proper spacing after punctuation
-        text = re.sub(r'(\.)([A-Za-z])', r'\1 \2', text)
-        
-        # Replace some common abbreviations
-        text = text.replace("can't", "cannot")
-        text = text.replace("won't", "will not")
-        text = text.replace("n't", " not")
-        
-        return text
+    def _get_rule_key(self, rule: Dict[str, Any]) -> str:
+        """Generate a unique key for a rule to help with deduplication."""
+        if rule['type'] == 'implication':
+            return f"implication:{rule.get('antecedent', '')}:{rule.get('consequent', '')}"
+        else:
+            return f"{rule['type']}:{rule.get('statement', '')}"
     
-    def _extract_sentences(self, text: str) -> List[str]:
-        """Extract individual sentences from text."""
-        # Simple sentence splitting by punctuation
-        sentences = re.split(r'(?<=[.!?])\s+', text)
-        return [s.strip() for s in sentences if s.strip()]
-    
-    def _extract_universal_rules(self, sentence: str) -> List[Dict[str, Any]]:
-        """Extract universal rules from a sentence."""
+    def _extract_rules_from_sentence(self, sentence: str) -> List[Dict[str, Any]]:
+        """Extract logical rules from a single sentence."""
         rules = []
-        sentence_lower = sentence.lower()
         
-        for pattern in self.UNIVERSAL_PATTERNS:
-            matches = re.finditer(pattern, sentence_lower)
-            for match in matches:
-                try:
-                    if match.group(1) in ['all', 'every', 'any', 'each']:
-                        subject = match.group(2).strip()
-                        predicate = match.group(4).strip()
-                    else:
-                        subject = match.group(1).strip()
-                        predicate = match.group(2).strip()
-                    
-                    rule = {
-                        "type": "universal",
-                        "statement": f"All {subject} are {predicate}",
-                        "original_text": sentence
-                    }
-                    rules.append(rule)
-                except (IndexError, AttributeError):
-                    continue
-        
-        return rules
-    
-    def _extract_implication_rules(self, sentence: str) -> List[Dict[str, Any]]:
-        """Extract implication rules from a sentence."""
-        rules = []
-        sentence_lower = sentence.lower()
-        
-        for pattern in self.IMPLICATION_PATTERNS:
-            matches = re.finditer(pattern, sentence_lower)
-            for match in matches:
-                try:
-                    antecedent = match.group(1).strip() if 'when' not in pattern else match.group(2).strip()
-                    consequent = match.group(2).strip() if 'when' not in pattern else match.group(3).strip()
-                    
-                    rule = {
-                        "type": "implication",
-                        "antecedent": antecedent,
-                        "consequent": consequent,
-                        "original_text": sentence
-                    }
-                    rules.append(rule)
-                except (IndexError, AttributeError):
-                    continue
-        
-        return rules
-    
-    def _extract_negation_rules(self, sentence: str) -> List[Dict[str, Any]]:
-        """Extract negation rules from a sentence."""
-        rules = []
-        sentence_lower = sentence.lower()
-        
-        for pattern in self.NEGATION_PATTERNS:
-            matches = re.finditer(pattern, sentence_lower)
-            for match in matches:
-                try:
-                    if 'it is not the case' in pattern:
-                        statement = f"NOT ({match.group(1).strip()})"
-                    else:
-                        subject = match.group(1).strip()
-                        predicate = match.group(2).strip() if len(match.groups()) > 1 else ""
-                        statement = f"{subject} is not {predicate}" if predicate else subject
-                    
-                    rule = {
-                        "type": "negation",
-                        "statement": statement,
-                        "original_text": sentence
-                    }
-                    rules.append(rule)
-                except (IndexError, AttributeError):
-                    continue
-        
-        return rules
-    
-    def _extract_existential_rules(self, sentence: str) -> List[Dict[str, Any]]:
-        """Extract existential rules from a sentence."""
-        rules = []
-        sentence_lower = sentence.lower()
-        
-        for pattern in self.EXISTENTIAL_PATTERNS:
-            matches = re.finditer(pattern, sentence_lower)
-            for match in matches:
-                try:
-                    # Handle different pattern structures
-                    if len(match.groups()) >= 3:
-                        quantifier = match.group(1).strip()
-                        subject = match.group(2).strip()
-                        predicate = match.group(3).strip()
-                        statement = f"{quantifier} {subject} {predicate}"
-                    else:
-                        quantifier = match.group(1).strip()
-                        subject = match.group(2).strip()
-                        statement = f"{quantifier} {subject}"
-                    
-                    rule = {
-                        "type": "existential",
-                        "statement": statement,
-                        "original_text": sentence
-                    }
-                    rules.append(rule)
-                except (IndexError, AttributeError):
-                    continue
-        
-        return rules
-    
-    def _extract_assertion_rules(self, sentence: str) -> List[Dict[str, Any]]:
-        """Extract general assertion rules from a sentence."""
-        rules = []
-        sentence_lower = sentence.lower()
-        
-        for pattern in self.ASSERTION_PATTERNS:
-            matches = re.finditer(pattern, sentence_lower)
-            for match in matches:
-                try:
-                    subject = match.group(1).strip()
-                    predicate = match.group(2).strip()
-                    
-                    # Skip if subject is a stopword or too short
-                    if subject.lower() in self.STOPWORDS or len(subject) < 2:
-                        continue
-                        
-                    rule = {
-                        "type": "assertion",
-                        "statement": f"{subject} is {predicate}",
-                        "original_text": sentence
-                    }
-                    rules.append(rule)
-                except (IndexError, AttributeError):
-                    continue
-        
-        # If no structured assertions found, use the entire sentence as a general assertion
-        if not rules and not self._is_special_form(sentence_lower):
+        # Check for universal statements (All X are Y)
+        universal_matches = self.universal_pattern.findall(sentence)
+        for match in universal_matches:
+            subject, predicate = match
             rules.append({
-                "type": "assertion",
-                "statement": sentence,
+                "type": "universal",
+                "statement": f"All {subject.strip()} are {predicate.strip()}",
                 "original_text": sentence
             })
         
-        return rules
-    
-    def _is_special_form(self, sentence: str) -> bool:
-        """Check if sentence matches any special logical form patterns."""
-        # Check all defined patterns to see if this is a special form
-        for pattern in (self.UNIVERSAL_PATTERNS + self.EXISTENTIAL_PATTERNS + 
-                      self.IMPLICATION_PATTERNS + self.NEGATION_PATTERNS):
-            if re.search(pattern, sentence):
-                return True
-        return False
-    
-    def _post_process_rules(self, rules: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Post-process extracted rules to normalize and improve quality."""
-        processed_rules = []
-        rule_texts = set()  # To avoid duplicates
-        
-        for rule in rules:
-            # Skip empty or invalid rules
-            if not rule:
-                continue
-                
-            # Normalize rule text representation
-            if rule["type"] == "implication":
-                rule_text = f"{rule['antecedent']} -> {rule['consequent']}"
-            else:
-                rule_text = rule.get("statement", "")
-            
-            # Skip if we've already seen this rule
-            if rule_text in rule_texts:
-                continue
-                
-            rule_texts.add(rule_text)
-            processed_rules.append(rule)
-        
-        return processed_rules
-
-
-class SpacyRuleExtractor(RuleExtractor):
-    """
-    Enhanced rule extractor using spaCy for better NLP capabilities.
-    """
-    
-    def __init__(self):
-        """Initialize the spaCy-based rule extractor."""
-        super().__init__()
-        self._initialize_spacy()
-    
-    def _initialize_spacy(self):
-        """Initialize spaCy model and components."""
-        try:
-            import spacy
-            self.nlp = spacy.load("en_core_web_sm")
-            logger.info("Initialized spaCy model for rule extraction")
-            self.use_spacy = True
-        except (ImportError, OSError):
-            logger.warning("spaCy or language model not available, falling back to regex patterns")
-            self.use_spacy = False
-    
-    def extract_rules(self, text: str) -> List[Dict[str, Any]]:
-        """Extract rules using spaCy for enhanced NLP if available."""
-        # If spaCy is not available, fall back to pattern-based extraction
-        if not getattr(self, 'use_spacy', False):
-            return super().extract_rules(text)
-        
-        # Preprocess text
-        text = self._preprocess_text(text)
-        
-        # Parse with spaCy
-        doc = self.nlp(text)
-        
-        rules = []
-        
-        # Process each sentence
-        for sent in doc.sents:
-            # Extract rules using dependency parsing
-            sent_rules = self._extract_rules_from_dependencies(sent)
-            if sent_rules:
-                rules.extend(sent_rules)
-            else:
-                # Fall back to pattern matching if dependency parsing didn't yield results
-                sent_text = sent.text
-                sent_rules = []
-                sent_rules.extend(self._extract_universal_rules(sent_text))
-                sent_rules.extend(self._extract_implication_rules(sent_text))
-                sent_rules.extend(self._extract_negation_rules(sent_text))
-                sent_rules.extend(self._extract_existential_rules(sent_text))
-                sent_rules.extend(self._extract_assertion_rules(sent_text))
-                rules.extend(sent_rules)
-        
-        # Post-process to normalize and remove duplicates
-        rules = self._post_process_rules(rules)
-        
-        logger.info(f"Extracted {len(rules)} logical rules from text using spaCy")
-        return rules
-    
-    def _extract_rules_from_dependencies(self, sent) -> List[Dict[str, Any]]:
-        """Extract logical rules using dependency parsing."""
-        rules = []
-        
-        # Get the root verb of the sentence
-        root = None
-        for token in sent:
-            if token.dep_ == "ROOT":
-                root = token
-                break
-        
-        if not root:
-            return []
-        
-        # Extract implication rules from conditional structures
-        if any(token.dep_ == "mark" and token.text.lower() == "if" for token in sent):
-            return self._extract_implication_from_deps(sent)
-        
-        # Extract negation rules
-        if any(token.dep_ == "neg" for token in sent):
-            return self._extract_negation_from_deps(sent, root)
-        
-        # Extract universal quantification
-        if any(token.text.lower() in ("all", "every", "each") for token in sent):
-            return self._extract_universal_from_deps(sent)
-        
-        # Extract simple assertions for anything else
-        return self._extract_assertion_from_deps(sent, root)
-    
-    def _extract_implication_from_deps(self, sent) -> List[Dict[str, Any]]:
-        """Extract implication rules from dependency parsed sentence."""
-        rules = []
-        
-        # Find the "if" clause and main clause
-        if_clause = ""
-        then_clause = ""
-        
-        # Very simplified approach - a real implementation would be more robust
-        for token in sent:
-            if token.dep_ == "mark" and token.text.lower() == "if":
-                # Find the clause that contains this token
-                if_head = token.head
-                if_subtree = list(if_head.subtree)
-                if_start = min(t.i for t in if_subtree)
-                if_end = max(t.i for t in if_subtree)
-                if_clause = sent[if_start:if_end+1].text
-                
-                # The rest is likely the then clause
-                then_tokens = [t for t in sent if t.i > if_end]
-                if then_tokens:
-                    then_clause = " ".join(t.text for t in then_tokens)
-        
-        if if_clause and then_clause:
-            # Clean up clauses
-            if_clause = if_clause.lower().replace("if ", "", 1).strip()
-            then_clause = then_clause.strip()
-            
+        # Check for existential statements (Some X are Y)
+        existential_matches = self.existential_pattern.findall(sentence)
+        for match in existential_matches:
+            subject, predicate = match
             rules.append({
-                "type": "implication",
-                "antecedent": if_clause,
-                "consequent": then_clause,
-                "original_text": sent.text
+                "type": "existential",
+                "statement": f"Some {subject.strip()} are {predicate.strip()}",
+                "original_text": sentence
             })
         
-        return rules
-    
-    def _extract_negation_from_deps(self, sent, root) -> List[Dict[str, Any]]:
-        """Extract negation rules from dependency parsed sentence."""
-        rules = []
+        # Check for negation statements (No X are Y)
+        negation_matches = self.negation_pattern.findall(sentence)
+        for match in negation_matches:
+            subject, predicate = match
+            rules.append({
+                "type": "negation",
+                "statement": f"{subject.strip()} are {predicate.strip()}",  # Store positive form
+                "original_text": sentence
+            })
         
-        # Check for negation
-        for token in sent:
-            if token.dep_ == "neg" and token.head == root:
-                # Extract subject and predicate
-                subjects = []
-                predicates = []
-                
-                for child in root.children:
-                    if child.dep_ in ("nsubj", "nsubjpass"):
-                        # Get the full noun phrase
-                        subjects.append(" ".join(t.text for t in child.subtree))
-                    elif child.dep_ in ("dobj", "attr", "acomp"):
-                        # Get the full object or complement
-                        predicates.append(" ".join(t.text for t in child.subtree))
-                
-                if subjects:
-                    subject = subjects[0]
-                    predicate = predicates[0] if predicates else ""
-                    
-                    statement = f"{subject} is not {predicate}" if predicate else f"NOT ({subject})"
-                    
+        # Check for implication statements (If X then Y)
+        implication_matches = self.implication_pattern.findall(sentence)
+        for match in implication_matches:
+            antecedent, consequent = match
+            rules.append({
+                "type": "implication",
+                "antecedent": antecedent.strip(),
+                "consequent": consequent.strip(),
+                "original_text": sentence
+            })
+        
+        # Check for "not" statements (X is not Y)
+        not_matches = self.not_pattern.findall(sentence)
+        for match in not_matches:
+            subject, predicate = match
+            # Store the positive form for negation
+            rules.append({
+                "type": "negation",
+                "statement": f"{subject.strip()} is {predicate.strip()}",  # Store positive form
+                "original_text": sentence
+            })
+        
+        # Check for equality statements (X is same as Y)
+        equality_matches = self.equality_pattern.findall(sentence)
+        for match in equality_matches:
+            left, right = match
+            rules.append({
+                "type": "assertion",
+                "statement": f"{left.strip()} is {right.strip()}",
+                "original_text": sentence,
+                "subtype": "equality"  # Mark as equality for special handling
+            })
+        
+        # Check for regular assertions (X is Y) - do last to avoid overlap
+        if not rules:  # Only if no other rule type was found
+            assertion_matches = self.assertion_pattern.findall(sentence)
+            for match in assertion_matches:
+                subject, predicate = match
+                # Skip if the predicate includes a negation
+                if not any(neg in predicate.lower() for neg in ['not', "n't"]):
                     rules.append({
-                        "type": "negation",
-                        "statement": statement,
-                        "original_text": sent.text
+                        "type": "assertion",
+                        "statement": f"{subject.strip()} is {predicate.strip()}",
+                        "original_text": sentence
                     })
         
         return rules
+
+
+class SpacyRuleExtractor(RuleExtractor):
+    """Extracts logical rules using spaCy NLP for better entity recognition."""
     
-    def _extract_universal_from_deps(self, sent) -> List[Dict[str, Any]]:
-        """Extract universal quantification rules from dependency parsed sentence."""
+    def __init__(self):
+        """Initialize the SpaCy-based rule extractor."""
+        super().__init__()
+        
+        try:
+            # Try to load a larger model first
+            import spacy
+            try:
+                self.nlp = spacy.load("en_core_web_lg")
+                logger.info("Initialized spaCy large model (en_core_web_lg)")
+            except OSError:
+                logger.warning("Large model not found, falling back to en_core_web_sm")
+                self.nlp = spacy.load("en_core_web_sm")
+                logger.info("Initialized spaCy small model (en_core_web_sm)")
+                
+            # Set up coreference resolution (placeholder for now)
+            self.setup_coref()
+            
+        except (ImportError, OSError) as e:
+            logger.error(f"Failed to initialize spaCy: {str(e)}")
+            raise
+    
+    def setup_coref(self):
+        """Set up coreference resolution."""
+        # This is a placeholder for future implementation
+        logger.info("Coreference resolution model loading is currently a placeholder.")
+        self.coref_model = None
+    
+    def extract_rules(self, text: str) -> List[Dict[str, Any]]:
+        """Extract logical rules from text using spaCy."""
+        if not text:
+            return []
+        
+        logger.info(f"[FLOW:EXTRACTION:DETAIL:SPACY] Starting spaCy-based rule extraction for text length {len(text)}")
+        
+        # For very large texts, split into manageable chunks
+        if len(text) > 10000:
+            logger.info(f"[FLOW:EXTRACTION:DETAIL:SPACY] Text is very large ({len(text)} chars), processing in chunks")
+            return self._process_large_text(text)
+        
+        # Use spaCy for efficient processing
+        doc = self.nlp(text)
+        # Convert the sentence generator to a list to get the count
+        sentences = list(doc.sents)
+        logger.info(f"[FLOW:EXTRACTION:DETAIL:SPACY] Processed text with spaCy, found {len(sentences)} sentences")
+        
         rules = []
         
-        # Find the quantifier
-        quantifier = None
-        for token in sent:
-            if token.text.lower() in ("all", "every", "each"):
-                quantifier = token
-                break
+        # Process each sentence to extract logical rules
+        for i, sent in enumerate(sentences):
+            sent_rules = self._extract_rules_from_spacy_sent(sent)
+            rules.extend(sent_rules)
+            if sent_rules:
+                logger.debug(f"[FLOW:EXTRACTION:DETAIL:SPACY] Found {len(sent_rules)} rules in sentence {i+1}")
         
-        if quantifier:
-            # Get the noun being quantified
-            noun = None
-            for token in sent:
-                if token.head == quantifier and token.dep_ in ("pobj", "dobj"):
-                    noun = " ".join(t.text for t in token.subtree)
-                    break
-            
-            # Get the predicate
-            root = None
-            for token in sent:
-                if token.dep_ == "ROOT":
-                    root = token
-                    break
-            
-            predicate = ""
-            if root and root.pos_ == "VERB":
-                predicate_tokens = []
-                for token in sent:
-                    if token.head == root and token.dep_ in ("dobj", "attr", "acomp"):
-                        predicate_tokens.extend(t.text for t in token.subtree)
-                
-                predicate = " ".join(predicate_tokens)
-            
-            if noun and predicate:
-                rules.append({
-                    "type": "universal",
-                    "statement": f"All {noun} are {predicate}",
-                    "original_text": sent.text
-                })
+        # Enhanced entity resolution using spaCy's entity recognition
+        resolved_rules = self._resolve_entities(rules, doc)
+        
+        # Remove duplicates while preserving order
+        unique_rules = []
+        seen = set()
+        for rule in resolved_rules:
+            rule_key = super()._get_rule_key(rule)
+            if rule_key not in seen:
+                seen.add(rule_key)
+                unique_rules.append(rule)
+        
+        logger.info(f"[FLOW:EXTRACTION:DETAIL:SPACY] Extracted {len(unique_rules)} unique rules after entity resolution")
+        
+        return unique_rules
+    
+    def _process_large_text(self, text: str) -> List[Dict[str, Any]]:
+        """Process very large texts by splitting into manageable chunks."""
+        # Split into paragraphs or chunks of reasonable size
+        chunks = []
+        current_chunk = ""
+        for paragraph in text.split("\n"):
+            if len(current_chunk) + len(paragraph) < 5000:
+                current_chunk += paragraph + "\n"
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = paragraph + "\n"
+        if current_chunk:
+            chunks.append(current_chunk)
+        
+        logger.info(f"[FLOW:EXTRACTION:DETAIL:SPACY] Split large text into {len(chunks)} chunks")
+        
+        # Process each chunk
+        all_rules = []
+        for i, chunk in enumerate(chunks):
+            logger.info(f"[FLOW:EXTRACTION:DETAIL:SPACY] Processing chunk {i+1}/{len(chunks)}")
+            # Use the regular extract method on each chunk
+            doc = self.nlp(chunk)
+            chunk_rules = []
+            for sent in doc.sents:
+                chunk_rules.extend(self._extract_rules_from_spacy_sent(sent))
+            all_rules.extend(chunk_rules)
+        
+        # Resolve entities across all rules
+        resolved_rules = self._resolve_entities(all_rules, self.nlp(" ".join([r.get("original_text", "") for r in all_rules])))
+        
+        # Remove duplicates
+        unique_rules = []
+        seen = set()
+        for rule in resolved_rules:
+            rule_key = super()._get_rule_key(rule)
+            if rule_key not in seen:
+                seen.add(rule_key)
+                unique_rules.append(rule)
+        
+        return unique_rules
+    
+    def _extract_rules_from_spacy_sent(self, sent) -> List[Dict[str, Any]]:
+        """Extract rules from a spaCy sentence."""
+        # Convert to a plain string for regex matching
+        sent_text = sent.text
+        
+        # Use the parent class's sentence extraction method
+        rules = super()._extract_rules_from_sentence(sent_text)
+        
+        # Additional spaCy-specific enhancements can be added here
+        # For example, using dependency parsing to identify subjects and objects more accurately
         
         return rules
     
-    def _extract_assertion_from_deps(self, sent, root) -> List[Dict[str, Any]]:
-        """Extract simple assertion rules from dependency parsed sentence."""
-        rules = []
+    def _resolve_entities(self, rules: List[Dict[str, Any]], doc) -> List[Dict[str, Any]]:
+        """Resolve and normalize entities using spaCy's NER."""
+        resolved_rules = []
         
-        if root and root.pos_ == "VERB":
-            # Get subject
-            subjects = []
-            for token in sent:
-                if token.head == root and token.dep_ in ("nsubj", "nsubjpass"):
-                    subjects.append(" ".join(t.text for t in token.subtree))
-            
-            # Get predicate
-            predicates = []
-            for token in sent:
-                if token.head == root and token.dep_ in ("dobj", "attr", "acomp", "xcomp"):
-                    predicates.append(" ".join(t.text for t in token.subtree))
-            
-            if subjects and (predicates or root.text.lower() != "is"):
-                subject = subjects[0]
-                predicate = predicates[0] if predicates else root.text
-                
-                rules.append({
-                    "type": "assertion",
-                    "statement": f"{subject} {root.text} {predicate}",
-                    "original_text": sent.text
-                })
-            elif subjects:
-                # For simple statements like "X exists"
-                rules.append({
-                    "type": "assertion",
-                    "statement": f"{subjects[0]} {root.text}",
-                    "original_text": sent.text
-                })
+        # Create an entity map to normalize entity references
+        entity_map = {}
+        for ent in doc.ents:
+            entity_map[ent.text.lower()] = ent.text
         
-        return rules 
+        # Process each rule to normalize entities
+        for rule in rules:
+            new_rule = rule.copy()
+            
+            if rule["type"] == "implication":
+                new_rule["antecedent"] = self._normalize_text(rule["antecedent"], entity_map)
+                new_rule["consequent"] = self._normalize_text(rule["consequent"], entity_map)
+            elif "statement" in rule:
+                new_rule["statement"] = self._normalize_text(rule["statement"], entity_map)
+            
+            resolved_rules.append(new_rule)
+        
+        return resolved_rules
+    
+    def _normalize_text(self, text: str, entity_map: Dict[str, str]) -> str:
+        """Normalize text using entity mapping."""
+        # Check if the full text is in the entity map
+        if text.lower() in entity_map:
+            return entity_map[text.lower()]
+        
+        # Otherwise, keep the original text
+        return text 
