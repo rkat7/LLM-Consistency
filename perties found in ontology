@@ -1,0 +1,16 @@
+perties found in ontology
+
+COMPARISON SUMMARY
+Both verifiers agree on the consistency status
+Standard verifier: 0.68 seconds
+Enhanced verifier: 0.00 seconds
+Speedup/slowdown: 198.66x
+
+Press Enter to continue... 
+
+rify text with Enhanced Verifier (detailed)
+2. Verify text with Standard Verifier
+3. Compare both verifiers (detailed)
+4. Load example text
+5. Toggle detail level (currently: DETAILED)
+6. Exit

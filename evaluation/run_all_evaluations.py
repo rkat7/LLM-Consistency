@@ -120,24 +120,24 @@ def generate_summary_report(performance_metrics, ablation_results, benchmark_res
     
     # Plot 1: Overall performance metrics
     axs[0, 0].bar(['Success Rate', 'Detection Rate', 'Repair Rate'], 
-              [performance_metrics['success_rate'], 
-               performance_metrics['inconsistency_detection_rate'], 
-               performance_metrics['repair_success_rate']])
+              [performance_metrics.get('success_rate', 0.0), 
+               performance_metrics.get('inconsistency_detection_rate', 0.0), 
+               performance_metrics.get('repair_success_rate', 0.0)])
     axs[0, 0].set_title('Overall Performance Metrics')
     axs[0, 0].set_ylim(0, 1)
     
     # Plot 2: Comparison with baseline
     methods = ["Baseline", "Neural-Symbolic"]
-    accuracy = [comparison_results["baseline"]["accuracy"], 
-                comparison_results["verifier"]["accuracy"]]
+    accuracy = [comparison_results.get("baseline", {}).get("accuracy", 0.0), 
+                comparison_results.get("verifier", {}).get("accuracy", 0.0)]
     axs[0, 1].bar(methods, accuracy, color=['lightgray', 'green'])
     axs[0, 1].set_title('Accuracy Comparison')
     axs[0, 1].set_ylim(0, 1)
     
     # Plot 3: Benchmark results by category
     categories = [c for c in benchmark_results.keys() if c != "overall"]
-    detection_rates = [benchmark_results[c]["detection_rate"] for c in categories]
-    repair_rates = [benchmark_results[c].get("repair_success_rate", 0) for c in categories]
+    detection_rates = [benchmark_results.get(c, {}).get("detection_rate", 0.0) for c in categories]
+    repair_rates = [benchmark_results.get(c, {}).get("repair_success_rate", 0.0) for c in categories]
     
     x = np.arange(len(categories))
     width = 0.35
@@ -151,8 +151,8 @@ def generate_summary_report(performance_metrics, ablation_results, benchmark_res
     
     # Plot 4: Ablation study results
     configs = list(ablation_results.keys())
-    success_rates = [ablation_results[c]["success_rate"] for c in configs]
-    repair_rates = [ablation_results[c].get("repair_success_rate", 0) for c in configs]
+    success_rates = [ablation_results.get(c, {}).get("success_rate", 0.0) for c in configs]
+    repair_rates = [ablation_results.get(c, {}).get("repair_success_rate", 0.0) for c in configs]
     
     x = np.arange(len(configs))
     width = 0.35
@@ -177,14 +177,14 @@ def generate_summary_report(performance_metrics, ablation_results, benchmark_res
         f.write(f"Success Rate: {performance_metrics.get('success_rate', 0.0):.2f}\n")
         f.write(f"Detection Rate: {performance_metrics.get('inconsistency_detection_rate', 0.0):.2f}\n")
         f.write(f"Repair Success Rate: {performance_metrics.get('repair_success_rate', 0.0):.2f}\n")
-        f.write(f"Average Verification Time: {performance_metrics.get('avg_verification_time', 0):.2f}s\n")
-        f.write(f"Average Repair Time: {performance_metrics.get('avg_repair_time', 0):.2f}s\n\n")
+        f.write(f"Average Verification Time: {performance_metrics.get('avg_verification_time', 0.0):.2f}s\n")
+        f.write(f"Average Repair Time: {performance_metrics.get('avg_repair_time', 0.0):.2f}s\n\n")
         
         f.write("2. COMPARISON WITH BASELINE\n")
-        f.write(f"Verifier Accuracy: {comparison_results['verifier']['accuracy']:.2f}\n")
-        f.write(f"Baseline Accuracy: {comparison_results['baseline']['accuracy']:.2f}\n")
-        f.write(f"Verifier F1 Score: {comparison_results['verifier']['f1']:.2f}\n")
-        f.write(f"Baseline F1 Score: {comparison_results['baseline']['f1']:.2f}\n\n")
+        f.write(f"Verifier Accuracy: {comparison_results.get('verifier', {}).get('accuracy', 0.0):.2f}\n")
+        f.write(f"Baseline Accuracy: {comparison_results.get('baseline', {}).get('accuracy', 0.0):.2f}\n")
+        f.write(f"Verifier F1 Score: {comparison_results.get('verifier', {}).get('f1', 0.0):.2f}\n")
+        f.write(f"Baseline F1 Score: {comparison_results.get('baseline', {}).get('f1', 0.0):.2f}\n\n")
         
         f.write("3. BENCHMARK RESULTS\n")
         f.write(f"Overall Detection Rate: {benchmark_results.get('overall', {}).get('detection_rate', 0.0):.2f}\n")

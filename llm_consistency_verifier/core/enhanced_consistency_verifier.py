@@ -8,6 +8,9 @@ from .verification_engine import VerificationResult
 from .enhanced_verification_engine import EnhancedVerificationEngine
 from ..utils.advanced_rule_extractor import AdvancedRuleExtractor
 from ..utils.ontology_manager import OntologyManager
+from ..utils.rule_extractor import SpacyRuleExtractor
+from ..utils.llm_interface import LLMInterface
+from .verification_engine import VerificationEngine
 
 # Configure logging
 logging.basicConfig(
@@ -35,7 +38,8 @@ class EnhancedConsistencyVerifier(ConsistencyVerifier):
                  llm_provider: str = Config.LLM_PROVIDER,
                  llm_model: str = Config.LLM_MODEL,
                  solver_type: str = Config.SOLVER_TYPE,
-                 use_llm_for_extraction: bool = True):
+                 use_llm_for_extraction: bool = True,
+                 use_caching: bool = True):
         """
         Initialize the enhanced consistency verifier.
         
@@ -44,6 +48,7 @@ class EnhancedConsistencyVerifier(ConsistencyVerifier):
             llm_model: The LLM model to use
             solver_type: The solver type to use
             use_llm_for_extraction: Whether to use LLM for rule extraction
+            use_caching: Whether to cache results
         """
         # Initialize parent class
         super().__init__(llm_provider, llm_model, solver_type, use_llm_for_extraction)
@@ -57,86 +62,101 @@ class EnhancedConsistencyVerifier(ConsistencyVerifier):
         if use_llm_for_extraction:
             self.rule_extractor = self.advanced_extractor
         
+        # Initialize the LLM interface
+        self.llm = LLMInterface(provider=llm_provider, model=llm_model)
+        
+        # Initialize the verification engine
+        self.verification_engine = VerificationEngine(solver_type=solver_type)
+        
+        # Cache for verification results
+        self.cache = {}
+        self.use_caching = use_caching
+        self.cache_hits = 0
+        self.cache_misses = 0
+        
         logger.info(f"EnhancedConsistencyVerifier initialized with LLM: {llm_provider}/{llm_model}, Solver: {solver_type}")
     
-    def verify(self, text: str) -> VerificationResult:
+    def verify(self, text: str, detail_level: str = 'minimal') -> VerificationResult:
         """
-        Verify logical consistency with enhanced capabilities.
+        Verify the logical consistency of a given text.
         
         Args:
             text: The text to verify
+            detail_level: Level of detail in the result ('minimal', 'detailed', 'debug')
             
         Returns:
             VerificationResult: The verification result
         """
-        # Check cache if enabled
-        if self.cache is not None:
-            cache_key = self._get_cache_key(text)
-            if cache_key in self.cache:
-                self.cache_hits += 1
-                logger.info(f"[FLOW:ENHANCED] Cache hit (hits: {self.cache_hits}, misses: {self.cache_misses})")
-                return self.cache[cache_key]
-            else:
-                self.cache_misses += 1
-                logger.info(f"[FLOW:ENHANCED] Cache miss (hits: {self.cache_hits}, misses: {self.cache_misses})")
+        # Check cache first
+        if self.use_caching and text in self.cache:
+            self.cache_hits += 1
+            logger.info(f"[FLOW:ENHANCED] Cache hit (hits: {self.cache_hits}, misses: {self.cache_misses})")
+            return self.cache[text]
+        
+        self.cache_misses += 1
+        logger.info(f"[FLOW:ENHANCED] Cache miss (hits: {self.cache_hits}, misses: {self.cache_misses})")
+        
+        # Start verification process
+        logger.info(f"[FLOW:ENHANCED:INPUT] Starting enhanced verification of text ({len(text)} chars)")
+        logger.debug(f"[FLOW:ENHANCED:INPUT] Text input: {text[:100]}...")
         
         start_time = time.time()
         
-        # ------ STEP 1: RECEIVE TEXT INPUT ------
-        logger.info(f"[FLOW:ENHANCED:INPUT] Starting enhanced verification of text ({len(text)} chars)")
-        logger.debug(f"[FLOW:ENHANCED:INPUT] Text input: {text[:200]}...")
+        # Extract logical rules
+        logger.info("[FLOW:ENHANCED:EXTRACTION] Extracting logical rules with advanced extractor")
+        extracted_rules = self.advanced_extractor.extract_rules(text)
+        logger.info(f"[FLOW:ENHANCED:EXTRACTION] Extracted {len(extracted_rules)} logical rules using advanced extractor")
         
-        # Extract original statements from the text
-        original_statements = [s.strip() for s in text.split('.') if s.strip()]
+        # Break text into statements
+        statements = self._split_into_statements(text)
         
-        # ------ STEP 2: ENHANCED RULE EXTRACTION ------
-        logger.info(f"[FLOW:ENHANCED:EXTRACTION] Extracting logical rules with advanced extractor")
+        # Verify the logical consistency
+        logger.info(f"[FLOW:ENHANCED:VERIFICATION] Performing enhanced verification on {len(extracted_rules)} rules")
+        verification_result = self.verification_engine.verify(extracted_rules, statements)
         
-        # Extract logical rules using advanced extractor
-        try:
-            logical_rules = self.advanced_extractor.extract_rules(text)
-            logger.info(f"[FLOW:ENHANCED:EXTRACTION] Extracted {len(logical_rules)} logical rules using advanced extractor")
-        except Exception as e:
-            logger.warning(f"[FLOW:ENHANCED:EXTRACTION] Advanced extractor failed: {str(e)}. Falling back to standard extraction.")
-            # Fall back to standard extraction
-            if hasattr(self, 'use_llm_for_extraction') and self.use_llm_for_extraction:
-                logical_rules = self.llm_interface.extract_logical_rules(text)
-            else:
-                logical_rules = self.rule_extractor.extract_rules(text)
-            logger.info(f"[FLOW:ENHANCED:EXTRACTION] Extracted {len(logical_rules)} logical rules using fallback extractor")
+        # Calculate verification time
+        verification_time = time.time() - start_time
+        if hasattr(verification_result, 'verification_time'):
+            verification_result.verification_time = verification_time
         
-        # No rules found - try direct LLM extraction as a backup
-        if len(logical_rules) < 2:
-            logger.warning(f"[FLOW:ENHANCED:EXTRACTION] Only {len(logical_rules)} rules found, attempting LLM backup extraction")
-            llm_rules = self.llm_interface.extract_logical_rules(text)
-            logger.info(f"[FLOW:ENHANCED:EXTRACTION] LLM backup extraction found {len(llm_rules)} rules")
-            
-            # If LLM found more rules, use those instead
-            if len(llm_rules) > len(logical_rules):
-                logger.info(f"[FLOW:ENHANCED:EXTRACTION] Using {len(llm_rules)} LLM-extracted rules instead of {len(logical_rules)} pattern-extracted rules")
-                logical_rules = llm_rules
+        logger.info("[FLOW:ENHANCED:VERIFICATION] Enhanced verification complete")
         
-        # ------ STEP 3: ENHANCED VERIFICATION ------
-        logger.info(f"[FLOW:ENHANCED:VERIFICATION] Performing enhanced verification on {len(logical_rules)} rules")
+        # Store the details in the verification_result for debugging if needed
+        if hasattr(verification_result, 'details'):
+            # Add details based on detail level
+            if detail_level in ['detailed', 'debug']:
+                verification_result.details['extracted_rules'] = extracted_rules
+                
+            if detail_level == 'debug':
+                verification_result.details['statements'] = statements
         
-        try:
-            # Use enhanced verification engine
-            verification_result = self.enhanced_engine.verify(logical_rules, original_statements)
-            logger.info(f"[FLOW:ENHANCED:VERIFICATION] Enhanced verification complete")
-        except Exception as e:
-            logger.warning(f"[FLOW:ENHANCED:VERIFICATION] Enhanced verification failed: {str(e)}. Falling back to standard verification.")
-            # Fall back to standard verification
-            verification_result = super().verify(text)
-        
-        # Set verification time
-        verification_result.verification_time = time.time() - start_time
-        
-        # Add to cache if enabled
-        if self.cache is not None:
-            cache_key = self._get_cache_key(text)
-            self.cache[cache_key] = verification_result
+        # Cache result
+        if self.use_caching:
+            self.cache[text] = verification_result
         
         return verification_result
+    
+    def _split_into_statements(self, text: str) -> List[str]:
+        """
+        Split the text into individual statements.
+        
+        Args:
+            text: The text to split
+            
+        Returns:
+            List of individual statements
+        """
+        # Preprocess the text
+        text = text.replace(';', '.')
+        
+        # Split by period followed by space or end of string
+        statements = []
+        for segment in text.split('.'):
+            segment = segment.strip()
+            if segment:
+                statements.append(segment + '.')
+        
+        return statements
     
     def verify_enhanced(self, text: str) -> VerificationResult:
         """

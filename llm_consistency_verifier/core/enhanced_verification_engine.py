@@ -2,6 +2,7 @@ import logging
 import z3
 from typing import List, Dict, Any, Set, Tuple, Optional
 import re
+from collections import defaultdict
 
 from ..config.config import Config
 from .verification_engine import VerificationEngine, VerificationResult
