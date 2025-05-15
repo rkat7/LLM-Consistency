@@ -67,7 +67,3 @@ else:
 - **utils/**: Utility functions and LLM interface
 - **config/**: Configuration settings
 - **tests/**: Unit and integration tests
-
-## References
-
-Based on the research proposal: "Formal Verification of LLM Output Consistency"
